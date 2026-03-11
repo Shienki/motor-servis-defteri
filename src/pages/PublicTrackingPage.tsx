@@ -97,7 +97,7 @@ export function PublicTrackingPage() {
             description="Müşteriye açık güncellemeler burada tarih sırasıyla görünür."
           />
           <div className="mt-5 space-y-3">
-            {data.customerUpdates.map((item) => (
+            {data.customerUpdates.map((item: { id: string; createdAt: string; message: string }) => (
               <div key={item.id} className="rounded-2xl border border-slate/10 bg-sand px-4 py-4 text-sm text-steel">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium text-ink">{formatShortDate(item.createdAt.slice(0, 10))}</span>

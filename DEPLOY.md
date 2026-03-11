@@ -9,8 +9,9 @@ Projeyi `Vercel` üzerinde online yayınlamak ve `Supabase` ile `OpenAI` ortam d
 1. `Supabase schema.sql` çalışmış olmalı
 2. `VITE_SUPABASE_URL` hazır olmalı
 3. `VITE_SUPABASE_ANON_KEY` hazır olmalı
-4. `OPENAI_API_KEY` hazır olmalı
-5. `Supabase email confirmation` kapalı olmalı
+4. `SUPABASE_SERVICE_ROLE_KEY` hazır olmalı
+5. `OPENAI_API_KEY` hazır olmalı
+6. `Supabase email confirmation` kapalı olmalı
 
 ## Supabase kritik ayar
 
@@ -39,6 +40,7 @@ ayarını kapat.
 ```env
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 OPENAI_API_KEY=...
 ```
 
@@ -52,7 +54,7 @@ OPENAI_API_KEY=...
 4. Yeni işlem ekle
 5. Borç ekranını kontrol et
 6. QR ekranını aç
-7. System admin girişini kontrol et
+7. Müşteri takip ekranını kontrol et
 
 ## Bilinen teknik not
 

@@ -7,7 +7,6 @@ import type {
   WorkOrder,
   WorkOrderStatus
 } from "../types";
-import { systemAdminConfig } from "../config/systemAdmin";
 import { currentUser } from "../data/mockData";
 import { canonicalPlate, formatPlateDisplay } from "./format";
 import { supabase } from "./supabase";
@@ -555,8 +554,8 @@ export async function fetchSystemAdminOverview() {
 
   return {
     systemAdmin: {
-      username: systemAdminConfig.username,
-      displayName: systemAdminConfig.displayName
+      username: "",
+      displayName: ""
     },
     totals: {
       serviceCount: services.length,

@@ -28,12 +28,6 @@ export type UserAccount = Profile & {
   password: string;
 };
 
-export type SystemAdmin = {
-  username: string;
-  password: string;
-  displayName: string;
-};
-
 export type Motorcycle = {
   id: string;
   userId: string;

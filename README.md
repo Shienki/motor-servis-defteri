@@ -41,6 +41,7 @@ Doğrulama sırasında uygulama `http://127.0.0.1:4173` adresinde başarıyla ç
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
 ```
 
@@ -82,5 +83,6 @@ Detaylı yayın adımları için:
 ## Güvenlik notu
 
 - `OPENAI_API_KEY` istemci tarafında `VITE_...` olarak tutulmamalı
+- `SUPABASE_SERVICE_ROLE_KEY` sadece sunucu tarafında tutulmalı, istemciye verilmemeli
 - müşteri takip ekranı için herkese açık veritabanı politikası açılmamalı
-- müşteri takip erişimi daha sonra sunucu tarafı rota veya `edge function` (sunucu tarafında çalışan küçük fonksiyon) ile güvenli hale getirilmeli
+- müşteri takip ve QR yönlendirme bu sürümde sunucu tarafı rotalar üzerinden çalışır

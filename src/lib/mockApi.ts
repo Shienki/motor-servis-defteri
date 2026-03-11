@@ -1,4 +1,3 @@
-import { systemAdminConfig } from "../config/systemAdmin";
 import {
   currentUser,
   defaultUserAccount,
@@ -21,7 +20,14 @@ import type {
 } from "../types";
 import { integrationStatus } from "./env";
 import { canonicalPlate, formatPlateDisplay } from "./format";
+import { getAccessToken } from "./supabase";
 import * as supabaseApi from "./supabaseApi";
+
+const systemAdminConfig = {
+  username: "",
+  password: "",
+  displayName: ""
+};
 
 const STORAGE_KEYS = {
   version: "motor-servis-defteri:seed-version",
@@ -30,8 +36,7 @@ const STORAGE_KEYS = {
   motorcycles: "motor-servis-defteri:motorcycles",
   repairs: "motor-servis-defteri:repairs",
   workOrders: "motor-servis-defteri:work-orders",
-  workOrderUpdates: "motor-servis-defteri:work-order-updates",
-  systemAdminRemember: "motor-servis-defteri:system-admin-remember"
+  workOrderUpdates: "motor-servis-defteri:work-order-updates"
 };
 
 const SEED_VERSION = "2026-03-11-demo-5";
@@ -754,61 +759,27 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
 
 export async function fetchPublicTrackingByToken(token: string) {
   await wait(140);
-  const users = readUsers();
-  const motorcycles = readMotorcycles();
-  const repairs = readRepairs();
-  const workOrder = readWorkOrders().find((item) => item.publicTrackingToken === clampText(token, 120)) ?? null;
-
-  if (!workOrder) {
+  const response = await fetch(`/api/public-tracking?token=${encodeURIComponent(clampText(token, 120))}`);
+  if (!response.ok) {
     return null;
   }
-
-  const motorcycle = motorcycles.find((item) => item.id === workOrder.motorcycleId) ?? null;
-
-  if (!motorcycle) {
-    return null;
-  }
-
-  const relatedRepairs = repairs
-    .filter((item) => item.motorcycleId === motorcycle.id)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const customerUpdates = readWorkOrderUpdates()
-    .filter((item) => item.workOrderId === workOrder.id && item.visibleToCustomer)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const latestRepair = relatedRepairs[0] ?? null;
-  const unpaidTotal = relatedRepairs.reduce((sum, item) => sum + remainingAmount(item), 0);
-  const owner = users.find((item) => item.id === motorcycle.userId);
-
-  return {
-    shopName: owner?.shopName ?? "Motor Servis",
-    shopPhone: "0212 555 10 10",
-    motorcycle,
-    workOrder,
-    customerUpdates,
-    latestRepair,
-    unpaidTotal
-  };
+  return response.json();
 }
 
 export async function resolveQrRedirect(token: string) {
   await wait(80);
-  const workOrder = readWorkOrders().find((item) => item.publicTrackingToken === clampText(token, 120)) ?? null;
-
-  if (!workOrder) {
+  const authToken = await getAccessToken();
+  const response = await fetch(`/api/qr-resolve?token=${encodeURIComponent(clampText(token, 120))}`, {
+    headers: authToken
+      ? {
+          Authorization: `Bearer ${authToken}`
+        }
+      : undefined
+  });
+  if (!response.ok) {
     return null;
   }
-
-  if (workOrder.userId === getActiveUserId()) {
-    return {
-      mode: "internal" as const,
-      path: `/motosiklet/${workOrder.motorcycleId}`
-    };
-  }
-
-  return {
-    mode: "public" as const,
-    path: `/takip/${workOrder.publicTrackingToken}`
-  };
+  return response.json();
 }
 
 export async function fetchSystemAdminOverview() {
@@ -952,53 +923,19 @@ export async function signInSystemAdmin(input: {
   rememberMe: boolean;
 }) {
   await wait(180);
-  const success =
-    clampText(input.username, 80) === systemAdminConfig.username &&
-    clampText(input.password, 120) === systemAdminConfig.password;
-
-  if (isBrowser()) {
-    if (success && input.rememberMe) {
-      window.localStorage.setItem(
-        STORAGE_KEYS.systemAdminRemember,
-        JSON.stringify({ username: systemAdminConfig.username, active: true })
-      );
-    } else if (!input.rememberMe) {
-      window.localStorage.removeItem(STORAGE_KEYS.systemAdminRemember);
-    }
-  }
-
   return {
-    success,
-    displayName: success ? systemAdminConfig.displayName : ""
+    success: false,
+    displayName: ""
   };
 }
 
 export async function getRememberedSystemAdmin() {
   await wait(40);
-  if (!isBrowser()) {
-    return null;
-  }
-
-  const remembered = safeJsonParse<{ username?: string; active?: boolean }>(
-    window.localStorage.getItem(STORAGE_KEYS.systemAdminRemember),
-    {}
-  );
-
-  if (remembered.active && remembered.username === systemAdminConfig.username) {
-    return {
-      username: systemAdminConfig.username,
-      displayName: systemAdminConfig.displayName
-    };
-  }
-
   return null;
 }
 
 export async function signOutSystemAdmin() {
   await wait(30);
-  if (isBrowser()) {
-    window.localStorage.removeItem(STORAGE_KEYS.systemAdminRemember);
-  }
 }
 
 export async function simulatePlateScan() {
@@ -1029,10 +966,16 @@ export async function analyzeRepairTranscript(
   }
 
   try {
+    const authToken = await getAccessToken();
     const response = await fetch("/api/repair-draft", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...(authToken
+          ? {
+              Authorization: `Bearer ${authToken}`
+            }
+          : {})
       },
       body: JSON.stringify({ transcript })
     });

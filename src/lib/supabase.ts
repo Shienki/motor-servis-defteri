@@ -9,3 +9,12 @@ export const supabase = integrationStatus.supabaseReady
       }
     })
   : null;
+
+export async function getAccessToken() {
+  if (!supabase) {
+    return "";
+  }
+
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? "";
+}
