@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
 import { createMotorcycle, findMotorcycleByPlate, simulatePlateScan } from "../lib/mockApi";
 import { canonicalPlate, formatPlateDisplay, lettersAndSpacesOnly, numbersOnly } from "../lib/format";
+import type { Motorcycle } from "../types";
 
 export function NewMotorcyclePage() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export function NewMotorcyclePage() {
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState("Önce plakayı yazabilir veya kamerayla okutabilirsin.");
+  const [duplicateMotorcycle, setDuplicateMotorcycle] = useState<Motorcycle | null>(null);
   const [form, setForm] = useState({
     licensePlate: "",
     model: "",
@@ -42,8 +44,8 @@ export function NewMotorcyclePage() {
 
     const existing = await findMotorcycleByPlate(formatted);
     if (existing) {
-      setMessage(`Bu plaka zaten kayıtlı: ${formatted}. Mevcut kayda yönlendiriliyorsun.`);
-      navigate(`/motosiklet/${existing.id}`);
+      setMessage(`Bu plaka zaten kayıtlı: ${formatted}. İstersen mevcut kayda gidebilirsin.`);
+      setDuplicateMotorcycle(existing);
       return;
     }
 
@@ -59,7 +61,7 @@ export function NewMotorcyclePage() {
       if (existing) {
         setSaving(false);
         setMessage(`Bu plaka zaten kayıtlı: ${formatPlateDisplay(form.licensePlate)}.`);
-        navigate(`/motosiklet/${existing.id}`);
+        setDuplicateMotorcycle(existing);
         return;
       }
 
@@ -92,11 +94,42 @@ export function NewMotorcyclePage() {
 
   return (
     <div className="space-y-5 px-4 py-5">
+      {duplicateMotorcycle ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4">
+          <Panel className="w-full max-w-md">
+            <SectionTitle
+              eyebrow="Aynı plaka bulundu"
+              title={formatPlateDisplay(duplicateMotorcycle.licensePlate)}
+              description="Daha önce bu plakaya ait bir kayıt oluşturulmuş. Mevcut kayda yönlendireyim mi?"
+            />
+            <div className="mt-5 rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
+              <p className="font-medium text-ink">{duplicateMotorcycle.customerName}</p>
+              <p className="mt-1">{duplicateMotorcycle.model}</p>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Button type="button" onClick={() => navigate(`/motosiklet/${duplicateMotorcycle.id}`)}>
+                Evet
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDuplicateMotorcycle(null);
+                  setMessage("İstersen plakayı veya diğer bilgileri değiştirip devam edebilirsin.");
+                }}
+              >
+                Hayır
+              </Button>
+            </div>
+          </Panel>
+        </div>
+      ) : null}
+
       <Panel className="bg-ink text-white">
         <SectionTitle
           eyebrow="Yeni kayıt"
           title="Yeni motosiklet kaydı aç"
-          description="Plakayı elle yaz veya kamerayla okut. Kayıt varsa mevcut sayfaya gider."
+          description="Plakayı elle yaz veya kamerayla okut. Kayıt varsa önce onayın istenir."
         />
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
           <Input
