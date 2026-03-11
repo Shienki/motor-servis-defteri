@@ -67,6 +67,7 @@ export function DashboardPage() {
     const found = await findMotorcycleByPlate(canonical);
 
     if (found) {
+      setMessage(`Kayıt bulundu: ${found.licensePlate}. Motosiklet sayfası açılıyor.`);
       navigate(`/motosiklet/${found.id}`);
       return;
     }

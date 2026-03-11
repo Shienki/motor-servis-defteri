@@ -143,8 +143,10 @@ export function MotorcyclePage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-amber">Motosiklet kaydı</p>
-            <h2 className="mt-3 text-3xl font-semibold">{motorcycle.licensePlate}</h2>
-            <p className="mt-2 text-sand/80">{motorcycle.model}</p>
+            <div className="mt-3 inline-flex rounded-2xl border-2 border-amber bg-white px-5 py-3 text-ink shadow-sm">
+              <h2 className="text-3xl font-black tracking-[0.18em]">{motorcycle.licensePlate}</h2>
+            </div>
+            <p className="mt-3 text-sand/80">{motorcycle.model}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/10 px-4 py-3">
