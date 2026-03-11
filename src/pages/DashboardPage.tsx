@@ -1,8 +1,8 @@
-import { Camera, ChevronRight, QrCode, Search, Settings2, Wallet } from "lucide-react";
+import { Camera, ChevronRight, Search, Settings2, Wallet, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Input, Panel, SectionTitle } from "../components/Ui";
-import { fetchDashboardData, findMotorcycleByPlate, simulatePlateScan } from "../lib/mockApi";
+import { fetchDashboardData, fetchServiceManagementSummary, findMotorcycleByPlate, simulatePlateScan } from "../lib/mockApi";
 import {
   canonicalPlate,
   formatCurrency,
@@ -20,15 +20,21 @@ export function DashboardPage() {
   const [motorcycles, setMotorcycles] = useState<Motorcycle[]>([]);
   const [recentRepairs, setRecentRepairs] = useState<Repair[]>([]);
   const [unpaidTotal, setUnpaidTotal] = useState(0);
+  const [activeWorkOrders, setActiveWorkOrders] = useState(0);
+  const [readyCount, setReadyCount] = useState(0);
   const [message, setMessage] = useState("Plakayı gir veya kamerayla okut.");
   const [scanBusy, setScanBusy] = useState(false);
 
   async function loadDashboard() {
-    fetchDashboardData().then((data) => {
-      setMotorcycles(data.motorcycles);
-      setRecentRepairs(data.recentRepairs);
-      setUnpaidTotal(data.unpaidTotal);
-    });
+    const [dashboard, serviceSummary] = await Promise.all([
+      fetchDashboardData(),
+      fetchServiceManagementSummary()
+    ]);
+    setMotorcycles(dashboard.motorcycles);
+    setRecentRepairs(dashboard.recentRepairs);
+    setUnpaidTotal(dashboard.unpaidTotal);
+    setActiveWorkOrders(serviceSummary.totalActive);
+    setReadyCount(serviceSummary.readyCount);
   }
 
   useEffect(() => {
@@ -83,10 +89,10 @@ export function DashboardPage() {
       <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <SectionTitle
           eyebrow="Hızlı erişim"
-          title="Plakadan kayda ulaş"
+          title="Motoru bul, işlemi aç"
           eyebrowClassName="text-amber-200"
           titleClassName="text-3xl text-white sm:text-4xl"
-          description="Ustaya uygun hızlı akış: ara, aç, işlem ekle, tahsilatı takip et."
+          description="Ana akış tek ekranda: ara, kaydı aç, işlemi ekle, tahsilatı takip et."
         />
         <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
           <div className="relative">
@@ -114,9 +120,9 @@ export function DashboardPage() {
             <Camera size={18} />
             Kamerayla Yeni Kayıt
           </Button>
-          <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/qr-merkezi")}>
-            <QrCode size={18} />
-            QR Okut
+          <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/servis-yonetimi")}>
+            <Wrench size={18} />
+            Aktif İşler
           </Button>
         </div>
         <p className="mt-4 text-sm text-sand/80">{message}</p>
@@ -126,8 +132,8 @@ export function DashboardPage() {
         <Panel>
           <SectionTitle
             eyebrow="Son işlemler"
-            title="Atölyede son 10 kayıt"
-            description="Bugün kimde ne yapıldığını tek bakışta gör."
+            title="Atölyede son açık kayıtlar"
+            description="Bugün kimde ne yapıldığını ve kimde tahsilat kaldığını tek bakışta gör."
           />
           <div className="mt-5 space-y-3">
             {recentRepairs.map((repair) => {
@@ -180,18 +186,14 @@ export function DashboardPage() {
 
           <Panel>
             <SectionTitle
-              eyebrow="Servis akışı"
-              title="Servis yönetimi"
-              description="Aktif iş emirlerini, hazır teslimleri ve bekleyen parçaları tek ekrandan yönet."
+              eyebrow="Aktif işler"
+              title={`${activeWorkOrders} aktif, ${readyCount} hazır`}
+              description="Parça bekleyenleri, hazır teslimleri ve devam eden işleri tek yerden yönet."
             />
             <div className="mt-4 grid gap-3">
               <Button className="w-full gap-2" variant="secondary" onClick={() => navigate("/servis-yonetimi")}>
                 <Settings2 size={18} />
-                Servis Yönetimine Git
-              </Button>
-              <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/qr-merkezi")}>
-                <QrCode size={18} />
-                QR Merkezini Aç
+                Aktif İşleri Aç
               </Button>
             </div>
           </Panel>

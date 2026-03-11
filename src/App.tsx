@@ -10,8 +10,6 @@ import { RecordsPage } from "./pages/RecordsPage";
 import { NewMotorcyclePage } from "./pages/NewMotorcyclePage";
 import { AccountPage } from "./pages/AccountPage";
 import { ServiceManagementPage } from "./pages/ServiceManagementPage";
-import { SystemAdminLoginPage } from "./pages/SystemAdminLoginPage";
-import { SystemAdminPanelPage } from "./pages/SystemAdminPanelPage";
 import { PublicTrackingPage } from "./pages/PublicTrackingPage";
 import { QrHubPage } from "./pages/QrHubPage";
 import { QrRedirectPage } from "./pages/QrRedirectPage";
@@ -24,8 +22,6 @@ export default function App() {
       <Route path="/kayit" element={<RegisterPage />} />
       <Route path="/qr/:token" element={<QrRedirectPage />} />
       <Route path="/takip/:token" element={<PublicTrackingPage />} />
-      <Route path="/system-admin/giris" element={<SystemAdminLoginPage />} />
-      <Route path="/system-admin/panel" element={<SystemAdminPanelPage />} />
       <Route element={<AppLayout />}>
         <Route path="/panel" element={<DashboardPage />} />
         <Route path="/hesap" element={<AccountPage />} />

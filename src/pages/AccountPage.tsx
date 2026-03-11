@@ -16,11 +16,7 @@ export function AccountPage() {
   return (
     <div className="space-y-5 px-4 py-5">
       <Panel className="bg-ink text-white">
-        <SectionTitle
-          eyebrow="Hesap"
-          title="Hesap ayarları"
-          description="Kullanıcı bilgilerini gör ve oturumu kapat."
-        />
+        <SectionTitle eyebrow="Hesap" title="Hesap ayarları" description="Kullanıcı bilgilerini gör ve oturumu kapat." />
       </Panel>
 
       <Panel>
@@ -39,12 +35,12 @@ export function AccountPage() {
       <Panel>
         <div className="flex items-center gap-3 text-steel">
           <Settings2 size={18} />
-          <p className="text-sm">Gerçek hesap ayarları Supabase bağlandığında genişletilecek.</p>
+          <p className="text-sm">Bu alan sade tutuldu. Usta için önemli olan hızlı giriş ve hızlı çıkış.</p>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => navigate("/servis-yonetimi")}>
-            Servis Yönetimi
+            Aktif İşler
           </Button>
           <Button variant="ghost" onClick={() => navigate("/panel")}>
             Panele Dön

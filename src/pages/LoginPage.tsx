@@ -13,12 +13,6 @@ export function LoginPage() {
 
   return (
     <div className="relative">
-      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
-        <Button variant="ghost" onClick={() => navigate("/system-admin/giris")}>
-          System Admin
-        </Button>
-      </div>
-
       <AuthShell title="Giriş Yap" subtitle="Servis kayıtlarına ulaşmak için hesabına giriş yap.">
         <form
           className="space-y-5"

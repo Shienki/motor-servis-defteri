@@ -219,12 +219,10 @@ export function MotorcyclePage() {
                       </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Link to="/qr-merkezi">
-                        <Button className="w-full gap-2" variant="secondary">
-                          <QrCode size={18} />
-                          QR Merkezini Aç
-                        </Button>
-                      </Link>
+                      <Button className="w-full gap-2" variant="secondary" type="button" onClick={() => window.print()}>
+                        <QrCode size={18} />
+                        QR Yazdır
+                      </Button>
                       <Link to={trackingCard.publicTrackingPath}>
                         <Button className="w-full" variant="ghost">
                           Müşteri Ekranını Aç

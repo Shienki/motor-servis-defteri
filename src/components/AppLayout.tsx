@@ -1,8 +1,8 @@
 import { BadgeAlert, ClipboardList, LayoutGrid, LogOut, Settings2, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import type { Profile } from "../types";
 import { getCurrentUserProfile, signOutUser } from "../lib/mockApi";
+import type { Profile } from "../types";
 
 const navItems = [
   { to: "/panel", label: "Panel", icon: LayoutGrid },
@@ -29,7 +29,7 @@ export function AppLayout() {
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs sm:flex">
               <BadgeAlert size={16} />
-              <span>Yerel demo sürümü</span>
+              <span>Saha odaklı sürüm</span>
             </div>
             <Link
               to="/hesap"
