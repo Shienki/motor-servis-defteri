@@ -1,0 +1,209 @@
+import { Camera, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
+import { createMotorcycle, findMotorcycleByPlate, simulatePlateScan } from "../lib/mockApi";
+import { canonicalPlate, formatPlateDisplay, lettersAndSpacesOnly, numbersOnly } from "../lib/format";
+
+export function NewMotorcyclePage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [message, setMessage] = useState("Önce plakayı yazabilir veya kamerayla okutabilirsin.");
+  const [form, setForm] = useState({
+    licensePlate: "",
+    model: "",
+    customerName: "",
+    phone: "",
+    kilometer: "",
+    notes: ""
+  });
+
+  useEffect(() => {
+    if (searchParams.get("plaka")) {
+      setForm((current) => ({
+        ...current,
+        licensePlate: formatPlateDisplay(searchParams.get("plaka") ?? "")
+      }));
+    }
+
+    if (searchParams.get("yontem") === "kamera") {
+      void handleScan();
+    }
+  }, []);
+
+  async function handleScan() {
+    setScanning(true);
+    const result = await simulatePlateScan();
+    const formatted = formatPlateDisplay(result.rawText);
+    setForm((current) => ({ ...current, licensePlate: formatted }));
+    setScanning(false);
+
+    const existing = await findMotorcycleByPlate(formatted);
+    if (existing) {
+      setMessage(`Bu plaka zaten kayıtlı: ${formatted}. Mevcut kayda yönlendiriliyorsun.`);
+      navigate(`/motosiklet/${existing.id}`);
+      return;
+    }
+
+    setMessage(`Plaka okundu: ${formatted}. Kayıt yoksa aşağıdan yeni kayıt aç.`);
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+
+    try {
+      const existing = await findMotorcycleByPlate(form.licensePlate);
+      if (existing) {
+        setSaving(false);
+        setMessage(`Bu plaka zaten kayıtlı: ${formatPlateDisplay(form.licensePlate)}.`);
+        navigate(`/motosiklet/${existing.id}`);
+        return;
+      }
+
+      const motorcycle = await createMotorcycle({
+        userId: "user-1",
+        licensePlate: formatPlateDisplay(form.licensePlate),
+        model: form.model,
+        customerName: form.customerName,
+        phone: form.phone,
+        kilometer: Number(form.kilometer || 0),
+        notes: form.notes
+      });
+
+      setForm({
+        licensePlate: "",
+        model: "",
+        customerName: "",
+        phone: "",
+        kilometer: "",
+        notes: ""
+      });
+      setMessage("Yeni motosiklet kaydı oluşturuldu.");
+      navigate(`/motosiklet/${motorcycle.id}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kayıt oluşturulamadı.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5 px-4 py-5">
+      <Panel className="bg-ink text-white">
+        <SectionTitle
+          eyebrow="Yeni kayıt"
+          title="Yeni motosiklet kaydı aç"
+          description="Plakayı elle yaz veya kamerayla okut. Kayıt varsa mevcut sayfaya gider."
+        />
+        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <Input
+            className="border-white/10 bg-white/10 text-white placeholder:text-sand/50"
+            placeholder="Örnek: 25 AA 25"
+            value={form.licensePlate}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                licensePlate: formatPlateDisplay(event.target.value)
+              }))
+            }
+          />
+          <Button className="gap-2" variant="ghost" onClick={() => void handleScan()}>
+            <Camera size={18} />
+            {scanning ? "Okunuyor..." : "Kamerayla Tara"}
+          </Button>
+        </div>
+        <p className="mt-4 text-sm text-sand/80">{message}</p>
+      </Panel>
+
+      <Panel>
+        <SectionTitle
+          eyebrow="Manuel bilgiler"
+          title="Kayıt detayları"
+          description="Plaka standart formatta tutulur. Diğer bilgileri ustaya göre hızlıca doldur."
+        />
+        <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Plaka</Label>
+              <Input
+                value={form.licensePlate}
+                maxLength={12}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    licensePlate: formatPlateDisplay(event.target.value)
+                  }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <Label>Motosiklet modeli</Label>
+              <Input
+                value={form.model}
+                maxLength={80}
+                onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Müşteri adı</Label>
+              <Input
+                value={form.customerName}
+                maxLength={80}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, customerName: lettersAndSpacesOnly(event.target.value) }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <Label>Telefon</Label>
+              <Input
+                value={form.phone}
+                maxLength={11}
+                inputMode="numeric"
+                onChange={(event) => setForm((current) => ({ ...current, phone: numbersOnly(event.target.value) }))}
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Kilometre</Label>
+            <Input
+              inputMode="numeric"
+              value={form.kilometer}
+              onChange={(event) => setForm((current) => ({ ...current, kilometer: numbersOnly(event.target.value) }))}
+            />
+          </div>
+
+          <div>
+            <Label>Notlar</Label>
+            <Textarea
+              maxLength={500}
+              value={form.notes}
+              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button type="submit" className="gap-2" disabled={saving || !canonicalPlate(form.licensePlate)}>
+              <Save size={18} />
+              {saving ? "Kaydediliyor..." : "Kaydı Oluştur"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => navigate("/kayitlar")}>
+              Kayıt Menüsüne Dön
+            </Button>
+          </div>
+        </form>
+      </Panel>
+    </div>
+  );
+}
