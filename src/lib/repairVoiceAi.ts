@@ -6,12 +6,17 @@ export type VoiceRepairAnalysis = {
   draft: AiRepairDraft;
 };
 
+type ErrorContextLike = {
+  status?: number;
+  text?: () => Promise<string>;
+};
+
 export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAnalysis> {
   const formData = new FormData();
   formData.append("file", audioBlob, `repair-note.${audioBlob.type.includes("mp4") ? "m4a" : "webm"}`);
 
   if (!supabase) {
-    throw new Error("Supabase bağlantısı hazır değil.");
+    throw new Error("Supabase baglantisi hazir degil.");
   }
 
   const { data, error } = await supabase.functions.invoke("repair-voice", {
@@ -19,8 +24,10 @@ export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAn
   });
 
   if (error) {
-    if ("context" in error && error.context instanceof Response) {
-      const rawText = await error.context.text();
+    const context = ("context" in error ? (error.context as ErrorContextLike | undefined) : undefined);
+
+    if (context && typeof context.text === "function") {
+      const rawText = await context.text();
       let errorMessage = "";
 
       try {
@@ -30,10 +37,11 @@ export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAn
         errorMessage = rawText;
       }
 
-      throw new Error(errorMessage || error.message || "Ses kaydı işlenemedi.");
+      const prefix = context.status ? `Durum kodu ${context.status}. ` : "";
+      throw new Error(prefix + (errorMessage || error.message || "Ses kaydi islenemedi."));
     }
 
-    throw new Error(error.message || "Ses kaydı işlenemedi.");
+    throw new Error(error.message || "Ses kaydi islenemedi.");
   }
 
   const parsed = data as {

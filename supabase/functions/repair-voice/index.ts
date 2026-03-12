@@ -26,37 +26,37 @@ const repairDraftSchema = {
 };
 
 const repairDraftSystemPrompt = `
-Sen Türkiye'de çalışan deneyimli bir motosiklet servis danışmanı gibi düşün.
-Sana bir ustanın dağınık servis notu verilecek. Bu not konuşmadan yazıya çevrilmiş olabilir ve küçük yazım hataları içerebilir.
-Metindeki mekanik terimleri bağlama göre düzelt. Örneğin yanlış duyulmuş veya eksik yazılmış bir parça veya işlem adı varsa motosiklet servis bağlamına göre en olası doğru ifadeyi kullan.
+Sen Turkiye'de calisan deneyimli bir motosiklet servis danismani gibi dusun.
+Sana bir ustanÄ±n daginik servis notu verilecek. Bu not konusmadan yaziya cevrilmis olabilir ve kucuk yazim hatalari icerebilir.
+Metindeki mekanik terimleri baglama gore duzelt. Yanlis duyulmus veya eksik yazilmis parca ya da islem adlarini motosiklet servis baglamina gore en olasi dogru ifadeyle duzelt.
 
-Görevin:
-1. Metindeki açık yazım veya duyma hatalarını bağlama göre düzelt.
-2. Yapılan işlemleri description alanına düzenli ve tek paragraf halinde yaz.
-3. İşçilik tutarını labor_cost alanına yaz.
-4. Yedek parça tutarını parts_cost alanına yaz.
-5. Kilometre bilgisini kilometer alanına yaz.
-6. Ödeme durumunu payment_status alanına yaz.
-7. Gelecekte yapılacak işler, sonraya kalan işlemler, müşteri notları, tekrar kontrol edilecek parçalar gibi şeyleri notes alanına yaz.
-8. assistant_summary alanında ustaya kısa ve net cevap ver. "Şu şekilde kaydedilecek" mantığında konuş.
+Gorevin:
+1. Metindeki acik yazim veya duyma hatalarini baglama gore duzelt.
+2. Yapilan islemleri description alanina duzenli ve kisa bir paragraf halinde yaz.
+3. Iscilik tutarini labor_cost alanina yaz.
+4. Yedek parca tutarini parts_cost alanina yaz.
+5. Kilometre bilgisini kilometer alanina yaz.
+6. Odeme durumunu payment_status alanina yaz.
+7. Gelecekte yapilacak isler, sonraya kalan islemler, musteri notlari ve tekrar kontrol edilecek parcalari notes alanina yaz.
+8. assistant_summary alaninda ustaya kisa ve net cevap ver. "Su sekilde kaydedilecek" mantiginda konus.
 
 Kurallar:
-- Sadece geçerli JSON üret.
-- Tutar uydurma. Metinde yoksa null bırak.
-- Kilometre yoksa null bırak.
-- Ödeme durumu açık değilse null bırak.
-- "500 peşin alındı", "kalan haftaya", "bir kısmı ödendi" gibi ifadeler partial olmalı.
-- "ödendi", "hesap kapandı" gibi ifadeler paid olmalı.
-- "ödenmedi", "sonra alınacak", "veresiye" gibi ifadeler unpaid olmalı.
-- Description alanına yalnızca bu işlemde yapılan işler yazılsın.
-- Notes alanına özellikle ileriye dönük veya ek not niteliğindeki bilgiler yazılsın.
-- Eğer metinde hem yapılan iş hem yapılacak iş geçiyorsa:
-  - yapılan iş description
-  - yapılacak iş notes
-  olarak ayrılmalı.
-- İşçilik, parça, kilometre, ödeme durumu gibi alan bilgilerini description içine tekrar yazma.
-- Eğer kullanıcı sadece "yedek parça ücreti 1500 TL" gibi bir alan söylediyse description boş olabilir.
-- Ödeme ile ilgili "ödendi", "ödenmedi", "kısmi ödendi", "500 peşin", "kalan sonra" gibi ifadeleri payment_status alanına mutlaka yansıt.
+- Sadece gecerli JSON uret.
+- Tutar uydurma. Metinde yoksa null birak.
+- Kilometre yoksa null birak.
+- Odeme durumu acik degilse null birak.
+- "500 pesin alindi", "kalan haftaya", "bir kismi odendi" gibi ifadeler partial olmali.
+- "odendi", "hesap kapandi" gibi ifadeler paid olmali.
+- "odenmedi", "sonra alinacak", "veresiye" gibi ifadeler unpaid olmali.
+- Description alanina yalnizca bu islemde yapilan isler yazilsin.
+- Notes alanina ozellikle ileriye donuk veya ek not niteligindeki bilgiler yazilsin.
+- Eger metinde hem yapilan is hem yapilacak is geciyorsa:
+  - yapilan is description
+  - yapilacak is notes
+  olarak ayrilmali.
+- Iscilik, parca, kilometre, odeme durumu gibi alan bilgilerini description icine tekrar yazma.
+- Eger kullanici sadece "yedek parca ucreti 1500 TL" gibi bir alan soylediyse description bos olabilir.
+- Odeme ile ilgili "odendi", "odenmedi", "kismi odendi", "500 pesin", "kalan sonra" gibi ifadeleri payment_status alanina mutlaka yansit.
 `;
 
 async function categorizeRepairTranscript(transcript: string, apiKey: string) {
@@ -70,14 +70,8 @@ async function categorizeRepairTranscript(transcript: string, apiKey: string) {
       model: "gpt-4o",
       temperature: 0.2,
       messages: [
-        {
-          role: "system",
-          content: repairDraftSystemPrompt
-        },
-        {
-          role: "user",
-          content: `Ustanın servis notu:\n${transcript}`
-        }
+        { role: "system", content: repairDraftSystemPrompt },
+        { role: "user", content: `Ustanin servis notu:\n${transcript}` }
       ],
       response_format: {
         type: "json_schema",
@@ -94,7 +88,7 @@ async function categorizeRepairTranscript(transcript: string, apiKey: string) {
   const content = data.choices?.[0]?.message?.content;
 
   if (!content) {
-    throw new Error("OpenAI boş yanıt döndürdü.");
+    throw new Error("OpenAI bos yanit dondurdu.");
   }
 
   return JSON.parse(content);
@@ -102,16 +96,14 @@ async function categorizeRepairTranscript(transcript: string, apiKey: string) {
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: corsHeaders
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
 
     if (!openAiKey) {
-      return new Response(JSON.stringify({ error: "Function ortam değişkenleri eksik." }), {
+      return new Response(JSON.stringify({ error: "Function ortam degiskenleri eksik." }), {
         status: 500,
         headers: {
           ...corsHeaders,
@@ -124,7 +116,7 @@ Deno.serve(async (request) => {
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return new Response(JSON.stringify({ error: "Ses dosyası bulunamadı." }), {
+      return new Response(JSON.stringify({ error: "Ses dosyasi bulunamadi." }), {
         status: 400,
         headers: {
           ...corsHeaders,
@@ -148,8 +140,10 @@ Deno.serve(async (request) => {
 
     if (!transcriptionResponse.ok) {
       const errorText = await transcriptionResponse.text();
-      return new Response(JSON.stringify({ error: errorText || "Whisper işlenemedi." }), {
-        status: transcriptionResponse.status,
+      return new Response(JSON.stringify({
+        error: `Whisper istegi basarisiz oldu (${transcriptionResponse.status}). ${errorText || "OpenAI yaniti alinamadi."}`
+      }), {
+        status: 502,
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json"
@@ -161,7 +155,7 @@ Deno.serve(async (request) => {
     const transcript = transcriptionData.text?.trim() ?? "";
 
     if (!transcript) {
-      return new Response(JSON.stringify({ error: "Ses kaydı çözülemedi." }), {
+      return new Response(JSON.stringify({ error: "Ses kaydi cozumlenemedi." }), {
         status: 422,
         headers: {
           ...corsHeaders,
@@ -186,7 +180,7 @@ Deno.serve(async (request) => {
       }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Ses kaydı işlenemedi.";
+    const message = error instanceof Error ? error.message : "Ses kaydi islenemedi.";
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: {
