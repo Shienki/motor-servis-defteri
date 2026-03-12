@@ -79,7 +79,7 @@ export function PublicTrackingPage() {
   return (
     <div className="min-h-screen bg-sand px-4 py-5">
       <div className="mx-auto max-w-3xl space-y-5">
-        <Panel className="bg-ink text-white">
+        <Panel className="!bg-ink text-white">
           <SectionTitle
             eyebrow={data.shopName}
             title={formatPlateDisplay(data.motorcycle.licensePlate)}
