@@ -31,9 +31,9 @@ import { getAccessToken } from "./supabase";
 import * as supabaseApi from "./supabaseApi";
 
 const systemAdminConfig = {
-  username: "yonetici",
-  password: "MotorAdmin123!",
-  displayName: "Sistem Yöneticisi"
+  username: "Shienki",
+  password: "Arcelik123.",
+  displayName: "Shienki"
 };
 
 const STORAGE_KEYS = {
