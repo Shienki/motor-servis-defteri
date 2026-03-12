@@ -32,6 +32,36 @@ const schema = {
   }
 };
 
+const systemPrompt = `
+Sen Türkiye'de çalışan deneyimli bir motosiklet servis danışmanı gibi düşün.
+Sana bir ustanın dağınık servis notu verilecek. Bu not konuşmadan yazıya çevrilmiş olabilir ve küçük yazım hataları içerebilir.
+
+Görevin:
+1. Metindeki açık yazım veya duyma hatalarını bağlama göre düzelt.
+2. Yapılan işlemleri description alanına düzenli ve tek paragraf halinde yaz.
+3. İşçilik tutarını labor_cost alanına yaz.
+4. Yedek parça tutarını parts_cost alanına yaz.
+5. Kilometre bilgisini kilometer alanına yaz.
+6. Ödeme durumunu payment_status alanına yaz.
+7. Gelecekte yapılacak işler, sonraya kalan işlemler, müşteri notları, tekrar kontrol edilecek parçalar gibi şeyleri notes alanına yaz.
+8. assistant_summary alanında ustaya kısa ve net cevap ver. "Şu şekilde kaydedilecek" mantığında konuş.
+
+Kurallar:
+- Sadece geçerli JSON üret.
+- Tutar uydurma. Metinde yoksa null bırak.
+- Kilometre yoksa null bırak.
+- Ödeme durumu açık değilse null bırak.
+- "500 peşin alındı", "kalan haftaya", "bir kısmı ödendi" gibi ifadeler partial olmalı.
+- "ödendi", "hesap kapandı" gibi ifadeler paid olmalı.
+- "ödenmedi", "sonra alınacak", "veresiye" gibi ifadeler unpaid olmalı.
+- Description alanına yalnızca bu işlemde yapılan işler yazılsın.
+- Notes alanına özellikle ileriye dönük veya ek not niteliğindeki bilgiler yazılsın.
+- Eğer metinde hem yapılan iş hem yapılacak iş geçiyorsa:
+  - yapılan iş description
+  - yapılacak iş notes
+  olarak ayrılmalı.
+`;
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -64,15 +94,15 @@ export default async function handler(req: any, res: any) {
     },
     body: JSON.stringify({
       model: "gpt-4o",
+      temperature: 0.2,
       messages: [
         {
           role: "system",
-          content:
-            "Sen motosiklet servis notlarını yapılandırılmış alana çeviren bir asistansın. Yalnızca geçerli JSON üret. Eksik bilgi varsa null döndür. Fiyat uydurma. assistant_summary alanında ustaya kısa ve net bir geri bildirim ver; hangi işlem, hangi tutar, hangi kilometre ve hangi ödeme durumu kaydedilecek açıkça söyle."
+          content: systemPrompt
         },
         {
           role: "user",
-          content: `Aşağıdaki servis notunu analiz et ve alanlara ayır:\n${transcript}`
+          content: `Ustanın servis notu:\n${transcript}`
         }
       ],
       response_format: {

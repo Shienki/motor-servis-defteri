@@ -1001,6 +1001,7 @@ export async function analyzeRepairTranscript(
       kilometer?: number | null;
       payment_status?: "paid" | "unpaid" | "partial" | null;
       notes?: string;
+      assistant_summary?: string;
     };
 
     return {
@@ -1009,7 +1010,8 @@ export async function analyzeRepairTranscript(
       partsCost: parsed.parts_cost ?? null,
       kilometer: parsed.kilometer ?? null,
       paymentStatus: parsed.payment_status ?? null,
-      notes: clampText(parsed.notes, 500)
+      notes: clampText(parsed.notes, 500),
+      assistantSummary: clampText(parsed.assistant_summary, 500)
     };
   } catch {
     return simulateVoiceExtraction();
