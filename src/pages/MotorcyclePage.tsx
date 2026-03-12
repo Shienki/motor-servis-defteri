@@ -139,22 +139,22 @@ export function MotorcyclePage() {
 
   return (
     <div className="space-y-5 px-4 py-5">
-      <Panel className="bg-ink text-white">
+      <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-amber">Motosiklet kaydÄ±</p>
             <div className="mt-3 inline-flex rounded-2xl border-2 border-amber bg-white px-5 py-3 text-ink shadow-sm">
               <h2 className="text-3xl font-black tracking-[0.18em]">{motorcycle.licensePlate}</h2>
             </div>
-            <p className="mt-3 text-lg font-semibold text-white">{motorcycle.model}</p>
+            <p className="mt-4 text-xl font-semibold text-white drop-shadow-sm">{motorcycle.model}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/15 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-mist">GÃ¼ncel km</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/75">Güncel km</p>
               <p className="mt-1 text-xl font-semibold">{motorcycle.kilometer.toLocaleString("tr-TR")} km</p>
             </div>
             <div className="rounded-2xl bg-amber px-4 py-3 text-ink">
-              <p className="text-xs uppercase tracking-[0.2em]">Ã–denmemiÅŸ bakiye</p>
+              <p className="text-xs uppercase tracking-[0.2em]">Ödenmemiþ bakiye</p>
               <p className="mt-1 text-xl font-semibold">{formatCurrency(unpaidBalance)}</p>
             </div>
           </div>
@@ -495,3 +495,4 @@ export function MotorcyclePage() {
     </div>
   );
 }
+
