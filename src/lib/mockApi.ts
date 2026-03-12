@@ -11,6 +11,7 @@ import type {
   AiRepairDraft,
   Motorcycle,
   PaymentEntry,
+  PaymentStatus,
   Profile,
   Repair,
   UserAccount,
@@ -968,11 +969,132 @@ export async function simulateVoiceExtraction(): Promise<AiRepairDraft> {
   };
 }
 
+function parseTurkishNumber(rawValue: string) {
+  const sanitized = rawValue.replace(/[^\d.,]/g, "").trim();
+  if (!sanitized) return null;
+
+  let normalized = sanitized;
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized)) {
+    normalized = normalized.replace(/,/g, "");
+  } else if (normalized.includes(",") && !normalized.includes(".")) {
+    normalized = normalized.replace(",", ".");
+  }
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? Math.round(parsed) : null;
+}
+
+function extractNumberByPatterns(transcript: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = transcript.match(pattern);
+    const candidate = match?.[1] ?? match?.[2];
+    if (!candidate) continue;
+    const parsed = parseTurkishNumber(candidate);
+    if (parsed !== null) return parsed;
+  }
+
+  return null;
+}
+
+function inferPaymentStatus(transcript: string): PaymentStatus | null {
+  const lower = transcript.toLocaleLowerCase("tr-TR");
+
+  if (/(kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower)) return "partial";
+  if (/(odendi|ödendi|hesap kapandi|hesap kapandı|tamamlandi|tamamlandı)/i.test(lower)) return "paid";
+  if (/(odenmedi|ödenmedi|veresiye|sonra alinacak|sonra alınacak|haftaya alinacak|haftaya alınacak)/i.test(lower)) {
+    return "unpaid";
+  }
+
+  return null;
+}
+
+function buildLocalRepairDraft(transcript: string): AiRepairDraft {
+  const cleaned = transcript.replace(/\s+/g, " ").trim();
+  const segments = cleaned
+    .split(/[.!?;,]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  const laborCost = extractNumberByPatterns(cleaned, [
+    /(?:iscilik|işçilik)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?\s*[:=-]?\s*(\d[\d.,]*)/i,
+    /(\d[\d.,]*)\s*tl\s*(?:iscilik|işçilik)/i
+  ]);
+  const partsCost = extractNumberByPatterns(cleaned, [
+    /(?:yedek\s*parca|yedek\s*parça|parca|parça)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?\s*[:=-]?\s*(\d[\d.,]*)/i,
+    /(\d[\d.,]*)\s*tl\s*(?:yedek\s*parca|yedek\s*parça|parca|parça)/i
+  ]);
+  const kilometer = extractNumberByPatterns(cleaned, [
+    /(?:kilometre|kilometer|km)(?:de|deki)?\s*[:=-]?\s*(\d[\d.,]*)/i,
+    /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)/i
+  ]);
+  const paymentStatus = inferPaymentStatus(cleaned);
+
+  const noteSegments = segments.filter((segment) =>
+    /(haftaya|sonra|tekrar|gelecek|kontrol edilecek|bakilacak|bakılacak|degisecek|değişecek|aranacak|haber verilecek)/i.test(
+      segment
+    )
+  );
+  const descriptionSegments = segments.filter((segment) => {
+    if (
+      /(iscilik|işçilik|parca|parça|kilometre|kilometer|\bkm\b|odendi|ödendi|odenmedi|ödenmedi|kismi|kısmi|pesin|peşin|kalan)/i.test(
+        segment
+      )
+    ) {
+      return /(degisti|değişti|yapildi|yapıldı|takildi|takıldı|kontrol edildi|temizlendi|ayarlandi|ayarlandı)/i.test(
+        segment
+      );
+    }
+
+    return true;
+  });
+
+  const draft: AiRepairDraft = {
+    description: clampText(descriptionSegments.join(". "), 220),
+    laborCost,
+    partsCost,
+    kilometer,
+    paymentStatus,
+    notes: clampText(noteSegments.join(". "), 500),
+    assistantSummary: ""
+  };
+
+  const summaryParts = [
+    draft.description ? `Islem: ${draft.description}` : null,
+    draft.laborCost !== null ? `Iscilik: ${draft.laborCost} TL` : null,
+    draft.partsCost !== null ? `Parca: ${draft.partsCost} TL` : null,
+    draft.kilometer !== null ? `Kilometre: ${draft.kilometer}` : null,
+    draft.paymentStatus ? `Odeme durumu: ${draft.paymentStatus}` : null,
+    draft.notes ? `Not: ${draft.notes}` : null
+  ].filter(Boolean);
+
+  draft.assistantSummary = summaryParts.length
+    ? `Su sekilde kaydedilecek: ${summaryParts.join(". ")}.`
+    : "AI net ayrisim yapamadi. Metni kontrol et.";
+
+  return draft;
+}
+
 export async function analyzeRepairTranscript(
   transcript = "Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı."
 ): Promise<AiRepairDraft> {
+  const cleanedTranscript = transcript.replace(/\s+/g, " ").trim();
+
+  if (!cleanedTranscript) {
+    return {
+      description: "",
+      laborCost: null,
+      partsCost: null,
+      kilometer: null,
+      paymentStatus: null,
+      notes: "",
+      assistantSummary: "Metin bulunamadi."
+    };
+  }
+
   if (typeof window === "undefined") {
-    return simulateVoiceExtraction();
+    return buildLocalRepairDraft(cleanedTranscript);
   }
 
   try {
@@ -987,7 +1109,7 @@ export async function analyzeRepairTranscript(
             }
           : {})
       },
-      body: JSON.stringify({ transcript })
+      body: JSON.stringify({ transcript: cleanedTranscript })
     });
 
     if (!response.ok) {
@@ -1014,7 +1136,7 @@ export async function analyzeRepairTranscript(
       assistantSummary: clampText(parsed.assistant_summary, 500)
     };
   } catch {
-    return simulateVoiceExtraction();
+    return buildLocalRepairDraft(cleanedTranscript);
   }
 }
 

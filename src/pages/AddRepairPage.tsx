@@ -1,10 +1,9 @@
-import { Mic, Sparkles } from "lucide-react";
+import { Mic, Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
 import { formatCurrency, numbersOnly } from "../lib/format";
-import { createRepairDraft, fetchMotorcycleDetail } from "../lib/mockApi";
-import { analyzeRepairAudio } from "../lib/repairVoiceAi";
+import { analyzeRepairTranscript, createRepairDraft, fetchMotorcycleDetail } from "../lib/mockApi";
 import type { AiRepairDraft, Motorcycle, PaymentStatus } from "../types";
 
 const emptyDraft: AiRepairDraft = {
@@ -17,43 +16,67 @@ const emptyDraft: AiRepairDraft = {
   assistantSummary: ""
 };
 
+type RecognitionEventLike = Event & {
+  results: ArrayLike<{
+    isFinal: boolean;
+    0: { transcript: string };
+    length: number;
+  }>;
+};
+
+type RecognitionErrorEventLike = Event & {
+  error?: string;
+};
+
+type BrowserRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: RecognitionEventLike) => void) | null;
+  onerror: ((event: RecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserRecognitionCtor = new () => BrowserRecognition;
+
+function getRecognitionCtor(): BrowserRecognitionCtor | null {
+  const browserWindow = window as Window & {
+    SpeechRecognition?: BrowserRecognitionCtor;
+    webkitSpeechRecognition?: BrowserRecognitionCtor;
+  };
+
+  return browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition ?? null;
+}
+
 function buildAssistantSummary(draft: AiRepairDraft) {
   const parts = [
-    draft.description ? `İşlem: ${draft.description}` : null,
-    draft.laborCost !== null ? `İşçilik: ${draft.laborCost} TL` : null,
-    draft.partsCost !== null ? `Parça: ${draft.partsCost} TL` : null,
+    draft.description ? `Islem: ${draft.description}` : null,
+    draft.laborCost !== null ? `Iscilik: ${draft.laborCost} TL` : null,
+    draft.partsCost !== null ? `Parca: ${draft.partsCost} TL` : null,
     draft.kilometer !== null ? `Kilometre: ${draft.kilometer}` : null,
     draft.paymentStatus
-      ? `Ödeme durumu: ${
-          draft.paymentStatus === "paid" ? "ödendi" : draft.paymentStatus === "partial" ? "kısmi" : "ödenmedi"
-        }`
+      ? `Odeme durumu: ${draft.paymentStatus === "paid" ? "odendi" : draft.paymentStatus === "partial" ? "kismi" : "odenmedi"}`
       : null,
     draft.notes ? `Not: ${draft.notes}` : null
   ].filter(Boolean);
 
-  return parts.length ? `Şu şekilde kaydedilecek: ${parts.join(". ")}.` : "AI kaydı hazırlanıyor.";
-}
-
-function getSupportedMimeType() {
-  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
-    return "";
-  }
-
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
-  return candidates.find((value) => MediaRecorder.isTypeSupported(value)) ?? "";
+  return parts.length ? `Su sekilde kaydedilecek: ${parts.join(". ")}.` : "AI ayrisma sonucu burada gorunecek.";
 }
 
 export function AddRepairPage() {
   const navigate = useNavigate();
   const { motorcycleId = "" } = useParams();
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<BrowserRecognition | null>(null);
+  const transcriptRef = useRef("");
   const [motorcycle, setMotorcycle] = useState<Motorcycle | null>(null);
-  const [recording, setRecording] = useState(false);
+  const [listening, setListening] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Mikrofona bas, yapılan işi anlat, kayıt bitince sistem çözümlesin.");
+  const [statusMessage, setStatusMessage] = useState(
+    "Mikrofona bas, usta konussun, metin olussun. Gerekirse metni duzelt, sonra AI alanlari hazirlasin."
+  );
   const [heardTranscript, setHeardTranscript] = useState("");
   const [draft, setDraft] = useState<AiRepairDraft>(emptyDraft);
 
@@ -62,14 +85,11 @@ export function AddRepairPage() {
 
     return () => {
       try {
-        mediaRecorderRef.current?.stop();
+        recognitionRef.current?.stop();
       } catch {
         // noop
       }
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-      mediaRecorderRef.current = null;
-      mediaStreamRef.current = null;
-      audioChunksRef.current = [];
+      recognitionRef.current = null;
     };
   }, [motorcycleId]);
 
@@ -79,94 +99,106 @@ export function AddRepairPage() {
     [draft]
   );
 
-  async function processAudioBlob(audioBlob: Blob) {
+  async function runAnalysis(rawTranscript: string) {
+    const transcript = rawTranscript.replace(/\s+/g, " ").trim();
+    transcriptRef.current = transcript;
+    setHeardTranscript(transcript);
+
+    if (!transcript) {
+      setStatusMessage("AI analiz icin once bir metin olusmali.");
+      return;
+    }
+
     setAnalyzing(true);
-    setStatusMessage("Whisper ses kaydını çözüyor, ardından AI alanları hazırlıyor.");
+    setStatusMessage("AI metni duzeltiyor ve alanlari hazirliyor.");
 
     try {
-      const result = await analyzeRepairAudio(audioBlob);
-      setHeardTranscript(result.transcript);
+      const parsedDraft = await analyzeRepairTranscript(transcript);
       setDraft({
-        ...result.draft,
-        assistantSummary: result.draft.assistantSummary?.trim() || buildAssistantSummary(result.draft)
+        ...parsedDraft,
+        assistantSummary: parsedDraft.assistantSummary?.trim() || buildAssistantSummary(parsedDraft)
       });
-      setStatusMessage("AI kaydı hazırladı. Aşağıdaki özet üzerinden onay verebilirsin.");
+      setStatusMessage("AI kaydi hazirladi. Metni ve alanlari kontrol edip kaydedebilirsin.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Ses kaydı işlenemedi.";
+      const message = error instanceof Error ? error.message : "AI metni isleyemedi.";
       setStatusMessage(message);
     } finally {
       setAnalyzing(false);
     }
   }
 
-  async function startRecording() {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setStatusMessage("Bu tarayıcı gerçek ses kaydı desteği sunmuyor. Chrome veya Edge ile tekrar dene.");
-      return;
-    }
-
+  function stopListening() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = getSupportedMimeType();
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-
-      mediaStreamRef.current = stream;
-      mediaRecorderRef.current = recorder;
-      audioChunksRef.current = [];
-      setDraft(emptyDraft);
-      setHeardTranscript("");
-      setRecording(true);
-      setStatusMessage("Kayıt başladı. İş bitince tekrar basarak durdur.");
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        audioChunksRef.current = [];
-        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-        mediaStreamRef.current = null;
-        mediaRecorderRef.current = null;
-        setRecording(false);
-
-        if (audioBlob.size === 0) {
-          setStatusMessage("Ses kaydı alınamadı. Daha uzun konuşup tekrar dene.");
-          return;
-        }
-
-        void processAudioBlob(audioBlob);
-      };
-
-      recorder.start(250);
+      recognitionRef.current?.stop();
     } catch {
-      setStatusMessage("Mikrofon izni verilmedi ya da kayıt başlatılamadı.");
+      // noop
     }
   }
 
-  function stopRecording() {
-    if (!mediaRecorderRef.current) {
+  function startListening() {
+    const RecognitionCtor = getRecognitionCtor();
+    if (!RecognitionCtor) {
+      setStatusMessage("Bu tarayicida canli konusma tanima destegi yok. Chrome veya Edge ile dene.");
       return;
     }
 
-    setStatusMessage("Kayıt durdu. Ses dosyası Whisper'a gönderiliyor.");
-    try {
-      mediaRecorderRef.current.requestData();
-    } catch {
-      // Some browsers may not support requestData reliably.
-    }
-    mediaRecorderRef.current.stop();
+    const recognition = new RecognitionCtor();
+    recognition.lang = "tr-TR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    transcriptRef.current = "";
+    setHeardTranscript("");
+    setDraft(emptyDraft);
+    setListening(true);
+    setStatusMessage("Dinleme basladi. Bitince tekrar basa ve AI analizi baslatsin.");
+
+    recognition.onresult = (event) => {
+      let combinedTranscript = "";
+
+      for (let index = 0; index < event.results.length; index += 1) {
+        const chunk = event.results[index]?.[0]?.transcript ?? "";
+        combinedTranscript += `${chunk} `;
+      }
+
+      const normalized = combinedTranscript.replace(/\s+/g, " ").trim();
+      transcriptRef.current = normalized;
+      setHeardTranscript(normalized);
+    };
+
+    recognition.onerror = (event) => {
+      setListening(false);
+      const reason =
+        event.error === "not-allowed"
+          ? "Mikrofon izni verilmedi."
+          : event.error === "no-speech"
+            ? "Ses algilanamadi. Daha net ve biraz daha uzun konus."
+            : "Konusma algilama baslatilamadi.";
+      setStatusMessage(reason);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+
+      if (transcriptRef.current.trim()) {
+        void runAnalysis(transcriptRef.current);
+      } else {
+        setStatusMessage("Konusma metne dokulemedi. Metni elle de girebilirsin.");
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   }
 
   function handleMicButton() {
-    if (recording) {
-      stopRecording();
+    if (listening) {
+      stopListening();
       return;
     }
 
-    void startRecording();
+    startListening();
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -175,6 +207,7 @@ export function AddRepairPage() {
     await createRepairDraft(motorcycleId, draft);
     setDraft(emptyDraft);
     setHeardTranscript("");
+    transcriptRef.current = "";
     setSaving(false);
     navigate(`/motosiklet/${motorcycleId}`);
   }
@@ -183,7 +216,7 @@ export function AddRepairPage() {
     return (
       <div className="px-4 py-5">
         <Panel>
-          <SectionTitle title="Motosiklet bulunamadı" description="Yeni işlem açmak için önce kayıtlı bir motosiklet seç." />
+          <SectionTitle title="Motosiklet bulunamadi" description="Yeni islem acmak icin once kayitli bir motosiklet sec." />
         </Panel>
       </div>
     );
@@ -193,11 +226,11 @@ export function AddRepairPage() {
     <div className="space-y-5 px-4 py-5">
       <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <SectionTitle
-          eyebrow="Sesli kayıt"
-          title={`${motorcycle.licensePlate} için yeni işlem`}
+          eyebrow="Sesli kayit"
+          title={`${motorcycle.licensePlate} icin yeni islem`}
           titleClassName="text-white"
           eyebrowClassName="text-amber-200"
-          description="Mikrofona bas, ustanın notunu kaydet. Whisper önce sesi yazıya çevirsin, sonra AI alanları doldursun."
+          description="Usta konussun, sistem metne doksun. Gerekirse metni duzelt, sonra AI duzelterek kategorilere ayirsin."
         />
         <div className="mt-6 grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
           <button
@@ -205,15 +238,15 @@ export function AddRepairPage() {
             onClick={handleMicButton}
             disabled={analyzing}
             className={`flex min-h-56 flex-col items-center justify-center rounded-[28px] border border-white/10 px-6 py-8 text-center transition ${
-              recording ? "bg-danger text-white" : "bg-white/15 text-white hover:bg-white/20"
+              listening ? "bg-danger text-white" : "bg-white/15 text-white hover:bg-white/20"
             } ${analyzing ? "cursor-wait opacity-80" : ""}`}
           >
             <Mic size={36} />
             <p className="mt-4 text-xl font-semibold text-white">
-              {recording ? "Kaydı durdur" : analyzing ? "Ses işleniyor" : "Bas ve kaydı başlat"}
+              {listening ? "Dinlemeyi durdur" : analyzing ? "AI analiz ediyor" : "Bas ve konus"}
             </p>
             <p className="mt-3 max-w-xs text-sm leading-6 text-white/92">
-              Örnek: Debriyaj içindeki balatalar değişti, işçilik 1200, yedek parça 900, kilometre 22000, 500 peşin alındı.
+              Ornek: Debriyaj balatasi degisti, iscilik 1200, yedek parca 900, kilometre 22000, 500 pesin alindi.
             </p>
           </button>
 
@@ -225,8 +258,22 @@ export function AddRepairPage() {
             <p className="mt-3 text-sm leading-6 text-white/92">{statusMessage}</p>
             <div className="mt-4 rounded-2xl bg-amber/20 px-4 py-3 text-sm text-white">{assistantSummary}</div>
             <div className="mt-4 rounded-2xl bg-ink/30 px-4 py-4 text-sm text-white/90">
-              <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Whisper metni</p>
-              <p className="mt-2 min-h-10">{heardTranscript || "Henüz ses kaydı alınmadı."}</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Duyulan metin</p>
+                <Button type="button" variant="ghost" className="min-h-10 px-4 text-xs" onClick={() => void runAnalysis(heardTranscript)}>
+                  <Wand2 size={16} />
+                  AI ile analiz et
+                </Button>
+              </div>
+              <Textarea
+                className="mt-3 min-h-28 bg-white/10 text-white placeholder:text-white/60"
+                placeholder="Konusma burada metne donecek. Gerekirse duzeltip tekrar AI ile analiz et."
+                value={heardTranscript}
+                onChange={(event) => {
+                  transcriptRef.current = event.target.value;
+                  setHeardTranscript(event.target.value);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -234,16 +281,16 @@ export function AddRepairPage() {
 
       <Panel>
         <SectionTitle
-          eyebrow="Onay ekranı"
-          title="Kaydetmeden önce düzenle"
-          description="AI önce özeti hazırlar. Son kontrol her zaman ustadadır."
+          eyebrow="Onay ekrani"
+          title="Kaydetmeden once duzenle"
+          description="AI once metni duzeltir ve alanlari hazirlar. Son kontrol her zaman ustadadir."
         />
 
         <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
           <div>
-            <Label>İşlem açıklaması</Label>
+            <Label>Islem aciklamasi</Label>
             <Textarea
-              placeholder="Yapılan işlemi detaylı yazın"
+              placeholder="Yapilan islemi detayli yazin"
               value={draft.description}
               onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
             />
@@ -251,7 +298,7 @@ export function AddRepairPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>İşçilik ücreti</Label>
+              <Label>Iscilik ucreti</Label>
               <Input
                 inputMode="numeric"
                 placeholder="0"
@@ -266,7 +313,7 @@ export function AddRepairPage() {
             </div>
 
             <div>
-              <Label>Yedek parça ücreti</Label>
+              <Label>Yedek parca ucreti</Label>
               <Input
                 inputMode="numeric"
                 placeholder="0"
@@ -286,7 +333,7 @@ export function AddRepairPage() {
               <Label>Kilometre</Label>
               <Input
                 inputMode="numeric"
-                placeholder="Örnek: 18720"
+                placeholder="Ornek: 18720"
                 value={draft.kilometer ?? ""}
                 onChange={(event) =>
                   setDraft((current) => ({
@@ -298,7 +345,7 @@ export function AddRepairPage() {
             </div>
 
             <div>
-              <Label>Ödeme durumu</Label>
+              <Label>Odeme durumu</Label>
               <select
                 className="min-h-12 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-sm outline-none focus:border-amber"
                 value={draft.paymentStatus ?? ""}
@@ -309,10 +356,10 @@ export function AddRepairPage() {
                   }))
                 }
               >
-                <option value="">Seçin</option>
-                <option value="paid">Ödendi</option>
-                <option value="partial">Kısmi</option>
-                <option value="unpaid">Ödenmedi</option>
+                <option value="">Secin</option>
+                <option value="paid">Odendi</option>
+                <option value="partial">Kismi</option>
+                <option value="unpaid">Odenmedi</option>
               </select>
             </div>
           </div>
@@ -320,7 +367,7 @@ export function AddRepairPage() {
           <div>
             <Label>Notlar</Label>
             <Textarea
-              placeholder="Ek notlar"
+              placeholder="Ileriye donuk veya ek notlar"
               value={draft.notes}
               onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
             />
@@ -337,12 +384,20 @@ export function AddRepairPage() {
             <Button type="submit" disabled={saving || analyzing}>
               {saving ? "Kaydediliyor..." : "Onayla ve Kaydet"}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setDraft(emptyDraft)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setDraft(emptyDraft);
+                setHeardTranscript("");
+                transcriptRef.current = "";
+              }}
+            >
               Temizle
             </Button>
             <Link to={`/motosiklet/${motorcycleId}`}>
               <Button className="w-full" type="button" variant="secondary">
-                İptal
+                Iptal
               </Button>
             </Link>
           </div>
