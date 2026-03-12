@@ -10,16 +10,6 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-function isIos() {
-  if (typeof navigator === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
-function isAndroid() {
-  if (typeof navigator === "undefined") return false;
-  return /android/i.test(navigator.userAgent);
-}
-
 function isStandalone() {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -44,9 +34,7 @@ export function LoginPage() {
   }, []);
 
   async function installOnAndroid() {
-    if (!deferredPrompt) {
-      return;
-    }
+    if (!deferredPrompt) return;
 
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
@@ -55,35 +43,32 @@ export function LoginPage() {
     }
   }
 
-  const showIosCard = isIos() && !isStandalone();
-  const showAndroidCard = isAndroid() && !isStandalone();
-
   return (
     <div className="relative">
       <AuthShell title="Giriş Yap" subtitle="Servis kayıtlarına ulaşmak için hesabına giriş yap.">
         <div className="space-y-4">
-          {showIosCard ? (
-            <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Share size={16} />
-                <span>iPhone için ana ekrana ekle</span>
+          {!isStandalone() ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <Share size={16} />
+                  <span>iPhone için ana ekrana ekle</span>
+                </div>
+                <p className="mt-2 text-sm text-steel">
+                  Safari&apos;de paylaş butonuna bas, sonra <span className="font-semibold text-ink">Ana Ekrana Ekle</span> seçeneğini seç.
+                </p>
               </div>
-              <p className="mt-2 text-sm text-steel">
-                Safari&apos;de paylaş butonuna bas, sonra <span className="font-semibold text-ink">Ana Ekrana Ekle</span> seçeneğini seç.
-              </p>
-            </div>
-          ) : null}
 
-          {showAndroidCard ? (
-            <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Download size={16} />
-                <span>Android için ana ekrana ekle</span>
+              <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <Download size={16} />
+                  <span>Android için ana ekrana ekle</span>
+                </div>
+                <p className="mt-2 text-sm text-steel">Chrome üzerinden bu siteyi ana ekrana yükleyip uygulama gibi kullanabilirsin.</p>
+                <Button className="mt-3" type="button" variant="secondary" onClick={() => void installOnAndroid()} disabled={!deferredPrompt}>
+                  Ana ekrana ekle
+                </Button>
               </div>
-              <p className="mt-2 text-sm text-steel">Chrome üzerinden bu siteyi uygulama gibi ana ekrana yükleyebilirsin.</p>
-              <Button className="mt-3" type="button" variant="secondary" onClick={() => void installOnAndroid()} disabled={!deferredPrompt}>
-                Ana ekrana ekle
-              </Button>
             </div>
           ) : null}
 
