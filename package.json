@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:repair-parser": "node --experimental-strip-types scripts/run-repair-parser-scenarios.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
