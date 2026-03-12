@@ -35,6 +35,7 @@ const schema = {
 const systemPrompt = `
 Sen Türkiye'de çalışan deneyimli bir motosiklet servis danışmanı gibi düşün.
 Sana bir ustanın dağınık servis notu verilecek. Bu not konuşmadan yazıya çevrilmiş olabilir ve küçük yazım hataları içerebilir.
+Metindeki mekanik terimleri bağlama göre düzelt. Örneğin yanlış duyulmuş veya eksik yazılmış bir parça / işlem adı varsa motosiklet servis bağlamına göre en olası doğru ifadeyi kullan.
 
 Görevin:
 1. Metindeki açık yazım veya duyma hatalarını bağlama göre düzelt.
@@ -60,6 +61,9 @@ Kurallar:
   - yapılan iş description
   - yapılacak iş notes
   olarak ayrılmalı.
+- İşçilik, parça, kilometre, ödeme durumu gibi alan bilgilerini description içine tekrar yazma.
+- Eğer kullanıcı sadece "yedek parça ücreti 1500 TL" gibi bir alan söylediyse description boş olabilir.
+- Ödeme ile ilgili "ödendi", "ödenmedi", "kısmi ödendi", "500 peşin", "kalan sonra" gibi ifadeleri payment_status alanına mutlaka yansıt.
 `;
 
 export default async function handler(req: any, res: any) {

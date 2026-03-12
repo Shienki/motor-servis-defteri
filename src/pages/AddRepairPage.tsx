@@ -62,7 +62,13 @@ function buildAssistantSummary(draft: AiRepairDraft) {
 function normalizeText(value: string) {
   return value
     .toLocaleLowerCase("tr-TR")
-    .replace(/[^a-z0-9çğıöşü\s]/gi, " ")
+    .replace(/ç/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ş/g, "s")
+    .replace(/ü/g, "u")
+    .replace(/[^a-z0-9\s]/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -167,7 +173,10 @@ function buildDescriptionFromTranscript(transcript: string) {
     /^(yedek parca|parca|iscilik|iscilik ucreti|yedek parca ucreti)[^a-z0-9]*\d/i.test(normalized) &&
     !hasWorkVerb;
 
-  return priceOnlySentence ? "" : transcript.trim();
+  const paymentOnlySentence =
+    /^(odendi|odenmedi|kismi odendi|odeme durumu|pesin|kapora|kalan)/i.test(normalized) && !hasWorkVerb;
+
+  return priceOnlySentence || paymentOnlySentence ? "" : transcript.trim();
 }
 
 function buildHeuristicDraftFromTranscript(transcript: string): AiRepairDraft {
@@ -177,6 +186,10 @@ function buildHeuristicDraftFromTranscript(transcript: string): AiRepairDraft {
   const kilometer = extractKilometer(cleanedTranscript);
   const paymentStatus = extractPaymentStatus(cleanedTranscript);
   const description = buildDescriptionFromTranscript(cleanedTranscript);
+  const normalized = normalizeText(cleanedTranscript);
+  const notes = /haftaya|sonraya|daha sonra|kontrol edilecek|bakilacak|gelecek|tekrar/i.test(normalized)
+    ? cleanedTranscript
+    : "";
 
   return {
     ...emptyDraft,
@@ -185,7 +198,7 @@ function buildHeuristicDraftFromTranscript(transcript: string): AiRepairDraft {
     partsCost,
     kilometer,
     paymentStatus,
-    notes: description ? cleanedTranscript : "",
+    notes,
     assistantSummary:
       laborCost !== null || partsCost !== null || kilometer !== null || paymentStatus !== null
         ? "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
