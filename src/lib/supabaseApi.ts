@@ -460,6 +460,35 @@ export async function fetchServiceManagementSummary() {
   };
 }
 
+export async function createTrackingWorkOrder(motorcycleId: string) {
+  const client = requireSupabase();
+  const userId = await getAuthUserId();
+  const motorcycle = await findMotorcycleById(motorcycleId);
+
+  if (!motorcycle) {
+    throw new Error("Bu motosiklet bulunamadı.");
+  }
+
+  const { data, error } = await client
+    .from("work_orders")
+    .insert({
+      motorcycle_id: motorcycleId,
+      user_id: userId,
+      complaint: "Servis takip süreci",
+      status: "received",
+      estimated_delivery_date: null,
+      public_tracking_token: crypto.randomUUID(),
+      qr_value: `moto:${motorcycleId}`,
+      customer_visible_note: "",
+      internal_note: ""
+    })
+    .select("*, motorcycles(*), work_order_updates(*)")
+    .single();
+
+  if (error) throw error;
+  return mapWorkOrder(data);
+}
+
 export async function updateWorkOrderStatus(
   workOrderId: string,
   input: {

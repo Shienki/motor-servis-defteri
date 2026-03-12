@@ -743,6 +743,30 @@ export async function fetchServiceManagementSummary() {
 }
 
 export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
+  if (integrationStatus.supabaseReady) {
+    const [{ motorcycle, history }, workOrders] = await Promise.all([
+      supabaseApi.fetchMotorcycleDetail(motorcycleId),
+      supabaseApi.fetchWorkOrders()
+    ]);
+
+    if (!motorcycle) {
+      return null;
+    }
+
+    const workOrder =
+      workOrders
+        .filter((item) => item.motorcycleId === motorcycleId)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+
+    return {
+      motorcycle,
+      history,
+      workOrder,
+      qrToken: workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`,
+      publicTrackingPath: `/takip/${workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`}`
+    };
+  }
+
   await wait(100);
   const [{ motorcycle }, workOrders] = await Promise.all([
     fetchMotorcycleDetail(motorcycleId),
@@ -764,6 +788,42 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
     qrToken: workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`,
     publicTrackingPath: `/takip/${workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`}`
   };
+}
+
+export async function createTrackingWorkOrder(motorcycleId: string) {
+  if (integrationStatus.supabaseReady) {
+    return supabaseApi.createTrackingWorkOrder(motorcycleId);
+  }
+
+  await wait(120);
+  const activeUserId = getActiveUserId();
+  const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
+
+  if (!motorcycle) {
+    throw new Error("Bu motosiklet bulunamadı.");
+  }
+
+  const nextWorkOrder = sanitizeWorkOrder({
+    id: crypto.randomUUID(),
+    motorcycleId,
+    userId: activeUserId,
+    complaint: "Servis takip süreci",
+    status: "received",
+    estimatedDeliveryDate: null,
+    publicTrackingToken: crypto.randomUUID(),
+    qrValue: `moto:${motorcycleId}`,
+    customerVisibleNote: "",
+    internalNote: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+
+  if (!nextWorkOrder) {
+    throw new Error("İş durumu kaydı oluşturulamadı.");
+  }
+
+  writeWorkOrders([nextWorkOrder, ...readWorkOrders()]);
+  return nextWorkOrder;
 }
 
 export async function fetchPublicTrackingByToken(token: string) {
