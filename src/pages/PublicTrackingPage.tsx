@@ -98,9 +98,9 @@ export function PublicTrackingPage() {
                 </span>
               )}
             </div>
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
+            <div className="rounded-2xl bg-white/15 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.2em] text-mist">Tahmini teslim</p>
-              <p className="mt-2 text-sm font-semibold text-white">
+              <p className="mt-2 text-base font-semibold text-white">
                 {data.workOrder?.estimatedDeliveryDate ? formatShortDate(data.workOrder.estimatedDeliveryDate) : "Şu an planlanmadı"}
               </p>
             </div>
