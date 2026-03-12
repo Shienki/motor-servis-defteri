@@ -93,14 +93,14 @@ export function PublicTrackingPage() {
                   {workOrderStatusLabel(data.workOrder.status)}
                 </span>
               ) : (
-                <span className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-ink">
+                <span className="mt-2 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
                   Şu an aktif iş yok
                 </span>
               )}
             </div>
             <div className="rounded-2xl bg-white/10 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.2em] text-mist">Tahmini teslim</p>
-              <p className="mt-2 font-semibold text-white">
+              <p className="mt-2 text-sm font-semibold text-white">
                 {data.workOrder?.estimatedDeliveryDate ? formatShortDate(data.workOrder.estimatedDeliveryDate) : "Şu an planlanmadı"}
               </p>
             </div>
