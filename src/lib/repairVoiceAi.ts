@@ -19,6 +19,20 @@ export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAn
   });
 
   if (error) {
+    if ("context" in error && error.context instanceof Response) {
+      const rawText = await error.context.text();
+      let errorMessage = "";
+
+      try {
+        const parsed = JSON.parse(rawText) as { error?: string };
+        errorMessage = parsed.error ?? "";
+      } catch {
+        errorMessage = rawText;
+      }
+
+      throw new Error(errorMessage || error.message || "Ses kaydı işlenemedi.");
+    }
+
     throw new Error(error.message || "Ses kaydı işlenemedi.");
   }
 
