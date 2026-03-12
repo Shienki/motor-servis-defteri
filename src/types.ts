@@ -86,3 +86,29 @@ export type WorkOrderUpdate = {
   visibleToCustomer: boolean;
   createdAt: string;
 };
+
+export type SystemAdminOverview = {
+  systemAdmin: {
+    username: string;
+    displayName: string;
+  };
+  totals: {
+    serviceCount: number;
+    motorcycleCount: number;
+    activeWorkOrderCount: number;
+    readyCount: number;
+    unpaidTotal: number;
+  };
+  services: Array<{
+    id: string;
+    shopName: string;
+    ownerName: string;
+    username: string;
+    motorcycleCount: number;
+    activeWorkOrderCount: number;
+    readyCount: number;
+    unpaidRepairCount: number;
+    unpaidTotal: number;
+    subscriptionStatus: string;
+  }>;
+};

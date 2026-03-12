@@ -40,7 +40,7 @@ export function AccountPage() {
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Button variant="ghost" onClick={() => navigate("/panel")}>
-            Panele Dön
+            Panele dön
           </Button>
           <Button
             variant="danger"

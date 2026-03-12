@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
+import { AdminLoginPage } from "./pages/AdminLoginPage";
+import { AdminPanelPage } from "./pages/AdminPanelPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MotorcyclePage } from "./pages/MotorcyclePage";
@@ -18,6 +20,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/giris" replace />} />
       <Route path="/giris" element={<LoginPage />} />
+      <Route path="/yonetici/giris" element={<AdminLoginPage />} />
+      <Route path="/yonetici/panel" element={<AdminPanelPage />} />
       <Route path="/kayit" element={<RegisterPage />} />
       <Route path="/qr/:token" element={<QrRedirectPage />} />
       <Route path="/takip/:token" element={<PublicTrackingPage />} />

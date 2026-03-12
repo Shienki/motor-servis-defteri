@@ -122,6 +122,13 @@ export function LoginPage() {
                 Kayıt Ol
               </Link>
             </p>
+
+            <p className="text-center text-sm text-steel">
+              Yönetici girişi için{" "}
+              <Link className="font-semibold text-ink" to="/yonetici/giris">
+                buraya geç
+              </Link>
+            </p>
           </form>
         </div>
       </AuthShell>

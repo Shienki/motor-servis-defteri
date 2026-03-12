@@ -14,6 +14,7 @@ import type {
   PaymentStatus,
   Profile,
   Repair,
+  SystemAdminOverview,
   UserAccount,
   WorkOrder,
   WorkOrderUpdate,
@@ -30,15 +31,16 @@ import { getAccessToken } from "./supabase";
 import * as supabaseApi from "./supabaseApi";
 
 const systemAdminConfig = {
-  username: "",
-  password: "",
-  displayName: ""
+  username: "yonetici",
+  password: "MotorAdmin123!",
+  displayName: "Sistem Yöneticisi"
 };
 
 const STORAGE_KEYS = {
   version: "motor-servis-defteri:seed-version",
   users: "motor-servis-defteri:users",
   auth: "motor-servis-defteri:auth",
+  adminAuth: "motor-servis-defteri:admin-auth",
   motorcycles: "motor-servis-defteri:motorcycles",
   repairs: "motor-servis-defteri:repairs",
   workOrders: "motor-servis-defteri:work-orders",
@@ -49,6 +51,11 @@ const SEED_VERSION = "2026-03-11-demo-5";
 
 type AuthState = {
   userId: string;
+  rememberMe: boolean;
+};
+
+type AdminAuthState = {
+  username: string;
   rememberMe: boolean;
 };
 
@@ -497,6 +504,27 @@ function writeStoredAuth(auth: AuthState | null) {
   window.localStorage.setItem(STORAGE_KEYS.auth, JSON.stringify(auth));
 }
 
+function getStoredAdminAuth() {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  return safeJsonParse<AdminAuthState | null>(window.localStorage.getItem(STORAGE_KEYS.adminAuth), null);
+}
+
+function writeStoredAdminAuth(auth: AdminAuthState | null) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  if (!auth) {
+    window.localStorage.removeItem(STORAGE_KEYS.adminAuth);
+    return;
+  }
+
+  window.localStorage.setItem(STORAGE_KEYS.adminAuth, JSON.stringify(auth));
+}
+
 function getActiveUserAccount() {
   const users = readUsers();
   const auth = getStoredAuth();
@@ -593,6 +621,39 @@ export async function signOutUser() {
   }
   await wait(30);
   writeStoredAuth(null);
+}
+
+export function hasSystemAdminSession() {
+  const session = getStoredAdminAuth();
+  return Boolean(session?.username && session.username === systemAdminConfig.username);
+}
+
+export async function signInSystemAdmin(input: {
+  username: string;
+  password: string;
+  rememberMe: boolean;
+}) {
+  await wait(140);
+  const username = clampText(input.username, 50).toLowerCase();
+  const password = clampText(input.password, 120);
+
+  if (username !== systemAdminConfig.username || password !== systemAdminConfig.password) {
+    return { success: false };
+  }
+
+  writeStoredAdminAuth({ username, rememberMe: input.rememberMe });
+  return {
+    success: true,
+    admin: {
+      username: systemAdminConfig.username,
+      displayName: systemAdminConfig.displayName
+    }
+  };
+}
+
+export async function signOutSystemAdmin() {
+  await wait(20);
+  writeStoredAdminAuth(null);
 }
 
 export async function fetchDashboardData() {
@@ -852,7 +913,7 @@ export async function resolveQrRedirect(token: string) {
   return response.json();
 }
 
-export async function fetchSystemAdminOverview() {
+export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
   if (integrationStatus.supabaseReady) {
     return supabaseApi.fetchSystemAdminOverview();
   }
@@ -985,27 +1046,6 @@ export async function addWorkOrderUpdate(input: {
   writeWorkOrders(nextOrders);
 
   return nextUpdate;
-}
-
-export async function signInSystemAdmin(input: {
-  username: string;
-  password: string;
-  rememberMe: boolean;
-}) {
-  await wait(180);
-  return {
-    success: false,
-    displayName: ""
-  };
-}
-
-export async function getRememberedSystemAdmin() {
-  await wait(40);
-  return null;
-}
-
-export async function signOutSystemAdmin() {
-  await wait(30);
 }
 
 export async function simulatePlateScan() {
