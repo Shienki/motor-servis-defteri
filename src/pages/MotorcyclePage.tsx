@@ -290,8 +290,8 @@ export function MotorcyclePage() {
                       <div className="flex items-center gap-3 text-ink">
                         <QrCode size={22} className="text-warning" />
                         <div>
-                          <p className="font-semibold">{trackingCard.workOrder?.qrValue ?? `moto:${motorcycle.id}`}</p>
-                          <p className="text-xs text-steel">{`${origin}/qr/${trackingCard.qrToken}`}</p>
+                          <p className="font-semibold">Takip bağlantısı hazır</p>
+                          <p className="text-xs text-steel">QR okutulunca müşteri ekranı otomatik açılır.</p>
                         </div>
                       </div>
                       {trackingCard.workOrder ? (
