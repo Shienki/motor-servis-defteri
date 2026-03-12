@@ -986,6 +986,16 @@ function parseTurkishNumber(rawValue: string) {
   return Number.isFinite(parsed) ? Math.round(parsed) : null;
 }
 
+function normalizeTranscriptForExtraction(transcript: string) {
+  return transcript
+    .replace(
+      /((?:iscilik|işçilik|yedek\s*parca|yedek\s*parça|parca|parça|kilometre|kilometer|km)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?)\s*[.:;=-]+\s*(\d)/giu,
+      "$1 $2"
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractNumberByPatterns(transcript: string, patterns: RegExp[]) {
   for (const pattern of patterns) {
     const match = transcript.match(pattern);
@@ -1011,22 +1021,22 @@ function inferPaymentStatus(transcript: string): PaymentStatus | null {
 }
 
 function buildLocalRepairDraft(transcript: string): AiRepairDraft {
-  const cleaned = transcript.replace(/\s+/g, " ").trim();
+  const cleaned = normalizeTranscriptForExtraction(transcript);
   const segments = cleaned
     .split(/[.!?;,]+/)
     .map((segment) => segment.trim())
     .filter(Boolean);
 
   const laborCost = extractNumberByPatterns(cleaned, [
-    /(?:iscilik|işçilik)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?\s*[:=-]?\s*(\d[\d.,]*)/i,
+    /(?:iscilik|işçilik)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
     /(\d[\d.,]*)\s*tl\s*(?:iscilik|işçilik)/i
   ]);
   const partsCost = extractNumberByPatterns(cleaned, [
-    /(?:yedek\s*parca|yedek\s*parça|parca|parça)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?\s*[:=-]?\s*(\d[\d.,]*)/i,
+    /(?:yedek\s*parca|yedek\s*parça|parca|parça)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
     /(\d[\d.,]*)\s*tl\s*(?:yedek\s*parca|yedek\s*parça|parca|parça)/i
   ]);
   const kilometer = extractNumberByPatterns(cleaned, [
-    /(?:kilometre|kilometer|km)(?:de|deki)?\s*[:=-]?\s*(\d[\d.,]*)/i,
+    /(?:kilometre|kilometer|km)(?:de|deki)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
     /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)/i
   ]);
   const paymentStatus = inferPaymentStatus(cleaned);
