@@ -1112,10 +1112,37 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
   return draft;
 }
 
+function preserveMotorcycleTerms(sourceTranscript: string, draft: AiRepairDraft) {
+  const normalizedTranscript = normalizeTranscriptForExtraction(sourceTranscript).toLocaleLowerCase("tr-TR");
+  const nextDraft = { ...draft };
+
+  if (normalizedTranscript.includes("bagalar")) {
+    nextDraft.description = nextDraft.description.replace(/\bbabalar\b/gi, "bagalar");
+    nextDraft.notes = nextDraft.notes.replace(/\bbabalar\b/gi, "bagalar");
+  }
+
+  if (normalizedTranscript.includes("baga")) {
+    nextDraft.description = nextDraft.description.replace(/\bbaba\b/gi, "baga");
+    nextDraft.notes = nextDraft.notes.replace(/\bbaba\b/gi, "baga");
+  }
+
+  if (normalizedTranscript.includes("kece")) {
+    nextDraft.description = nextDraft.description.replace(/\bkese\b/gi, "kece");
+    nextDraft.notes = nextDraft.notes.replace(/\bkese\b/gi, "kece");
+  }
+
+  if (normalizedTranscript.includes("burc")) {
+    nextDraft.description = nextDraft.description.replace(/\bburca\b/gi, "burc").replace(/\bvurc\b/gi, "burc");
+    nextDraft.notes = nextDraft.notes.replace(/\bburca\b/gi, "burc").replace(/\bvurc\b/gi, "burc");
+  }
+
+  return nextDraft;
+}
+
 export async function analyzeRepairTranscript(
   transcript = "Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı."
 ): Promise<AiRepairDraft> {
-  const cleanedTranscript = transcript.replace(/\s+/g, " ").trim();
+  const cleanedTranscript = normalizeTranscriptForExtraction(transcript);
 
   if (!cleanedTranscript) {
     return {
@@ -1162,7 +1189,7 @@ export async function analyzeRepairTranscript(
       assistant_summary?: string;
     };
 
-    return {
+    return preserveMotorcycleTerms(cleanedTranscript, {
       description: clampText(parsed.description, 220),
       laborCost: parsed.labor_cost ?? null,
       partsCost: parsed.parts_cost ?? null,
@@ -1170,7 +1197,7 @@ export async function analyzeRepairTranscript(
       paymentStatus: parsed.payment_status ?? null,
       notes: clampText(parsed.notes, 500),
       assistantSummary: clampText(parsed.assistant_summary, 500)
-    };
+    });
   } catch {
     return buildLocalRepairDraft(cleanedTranscript);
   }

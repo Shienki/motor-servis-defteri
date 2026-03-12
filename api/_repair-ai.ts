@@ -92,6 +92,8 @@ Gorevin:
 
 Kurallar:
 - Sadece gecerli JSON uret.
+- Eger metinde zaten gecerli bir motosiklet terimi varsa onu bozma. Ornek: metinde "baga" geciyorsa bunu "baba" yapma.
+- Eger metinde "bagalar" geciyorsa "babalar" veya anlamsiz baska kelimeye cevirme.
 - Sayilar, noktalar, virguller ve satir sonlari daginik olabilir. Etikete en yakin sayiyi sec.
 - Ornek: "iscilik ucreti. 1500. yedek parca 700" ise labor_cost=1500, parts_cost=700.
 - Ornek: "km. 22000" ise kilometer=22000.
