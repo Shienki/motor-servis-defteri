@@ -18,10 +18,42 @@ type TrackingData = Awaited<ReturnType<typeof fetchPublicTrackingByToken>>;
 export function PublicTrackingPage() {
   const { token = "" } = useParams();
   const [data, setData] = useState<TrackingData>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPublicTrackingByToken(token).then((result) => setData(result));
+    let active = true;
+    setLoading(true);
+
+    fetchPublicTrackingByToken(token)
+      .then((result) => {
+        if (!active) return;
+        setData(result);
+      })
+      .finally(() => {
+        if (!active) return;
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [token]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-sand px-4 py-5">
+        <div className="mx-auto max-w-3xl space-y-5">
+          <Panel className="bg-ink text-white">
+            <SectionTitle
+              eyebrow="Müşteri takip"
+              title="Takip bilgileri yükleniyor"
+              description="Servis kaydı hazırlanıyor. Lütfen kısa bir an bekleyin."
+            />
+          </Panel>
+        </div>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
