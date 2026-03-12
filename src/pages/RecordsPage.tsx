@@ -36,7 +36,7 @@ export function RecordsPage() {
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-mist" size={18} />
             <Input
-              className="border-white/10 bg-white/10 pl-11 text-white placeholder:text-sand/60"
+              className="border-white/10 bg-white/10 pl-11 text-white placeholder:text-slate/70"
               placeholder="Plaka ara"
               value={query}
               onChange={(event) => setQuery(formatPlateDisplay(event.target.value))}
