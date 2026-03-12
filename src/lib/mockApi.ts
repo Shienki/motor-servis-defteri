@@ -828,7 +828,12 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
 
 export async function fetchPublicTrackingByToken(token: string) {
   await wait(140);
-  const response = await fetch(`/api/public-tracking?token=${encodeURIComponent(clampText(token, 120))}`);
+  const response = await fetch(`/api/public-tracking?token=${encodeURIComponent(clampText(token, 120))}`, {
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache"
+    }
+  });
   if (!response.ok) {
     return null;
   }

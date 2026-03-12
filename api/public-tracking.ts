@@ -12,6 +12,10 @@ function defaultCustomerStatusNote(status: string | null) {
 }
 
 export default async function handler(req: any, res: any) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
     return;
@@ -41,13 +45,8 @@ export default async function handler(req: any, res: any) {
             .order("updated_at", { ascending: false })
         ]);
 
-      if (motorcycleError) {
-        throw motorcycleError;
-      }
-
-      if (workOrdersError) {
-        throw workOrdersError;
-      }
+      if (motorcycleError) throw motorcycleError;
+      if (workOrdersError) throw workOrdersError;
 
       motorcycle = motorcycleRow;
       workOrder = (workOrders ?? [])[0] ?? null;
@@ -58,9 +57,7 @@ export default async function handler(req: any, res: any) {
         .eq("public_tracking_token", token)
         .maybeSingle();
 
-      if (workOrderError) {
-        throw workOrderError;
-      }
+      if (workOrderError) throw workOrderError;
 
       motorcycle = workOrderRow?.motorcycles ?? null;
       workOrder = workOrderRow?.status === "delivered" ? null : workOrderRow;
