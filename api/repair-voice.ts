@@ -28,9 +28,9 @@ export default async function handler(req: any, res: any) {
 
   try {
     const audioBytes = Buffer.from(audioBase64, "base64");
-    const audioFile = new File([audioBytes], "repair-note.webm", { type: mimeType });
     const transcriptionForm = new FormData();
-    transcriptionForm.append("file", audioFile);
+    const audioBlob = new Blob([audioBytes], { type: mimeType || "audio/webm" });
+    transcriptionForm.append("file", audioBlob, "repair-note.webm");
     transcriptionForm.append("model", "whisper-1");
     transcriptionForm.append("language", "tr");
 
@@ -63,6 +63,6 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ses kaydı işlenemedi.";
-    res.status(502).json({ error: message });
+    res.status(502).json({ error: message || "Ses kaydı işlenemedi." });
   }
 }
