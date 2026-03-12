@@ -176,6 +176,31 @@ export function MotorcyclePage() {
       }
     });
 
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    const dataUrlToBlob = async (dataUrl: string) => {
+      const response = await fetch(dataUrl);
+      return await response.blob();
+    };
+
+    if (isMobile) {
+      const blob = await dataUrlToBlob(qrImage);
+      const file = new File([blob], `${motorcycle.licensePlate.replace(/\s+/g, "-")}-qr.png`, { type: "image/png" });
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: `${motorcycle.licensePlate} QR etiketi`,
+          text: `${motorcycle.licensePlate} için QR etiketi`,
+          files: [file]
+        });
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      window.open(objectUrl, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      return;
+    }
+
     const printWindow = window.open("", "_blank", "width=420,height=420");
     if (!printWindow) return;
 
