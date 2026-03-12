@@ -21,6 +21,11 @@ import type {
 } from "../types";
 import { integrationStatus } from "./env";
 import { canonicalPlate, formatPlateDisplay } from "./format";
+import {
+  buildAssistantSummary as buildSharedAssistantSummary,
+  buildLocalRepairDraft as buildSharedLocalRepairDraft,
+  normalizeTranscriptForExtraction as normalizeSharedTranscriptForExtraction
+} from "./repairDraftParser";
 import { getAccessToken } from "./supabase";
 import * as supabaseApi from "./supabaseApi";
 
@@ -1230,8 +1235,8 @@ function preserveMotorcycleTerms(sourceTranscript: string, draft: AiRepairDraft)
 export async function analyzeRepairTranscript(
   transcript = "Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı."
 ): Promise<AiRepairDraft> {
-  const cleanedTranscript = normalizeTranscriptForExtraction(transcript);
-  const localDraft = buildLocalRepairDraft(cleanedTranscript);
+  const cleanedTranscript = normalizeSharedTranscriptForExtraction(transcript);
+  const localDraft = buildSharedLocalRepairDraft(cleanedTranscript);
 
   if (!cleanedTranscript) {
     return {
@@ -1302,7 +1307,7 @@ export async function analyzeRepairTranscript(
     });
 
     mergedDraft.description = cleanStructuredDescription(mergedDraft.description);
-    mergedDraft.assistantSummary = mergedDraft.assistantSummary || buildAssistantSummary(mergedDraft);
+    mergedDraft.assistantSummary = mergedDraft.assistantSummary || buildSharedAssistantSummary(mergedDraft);
 
     if (!mergedDraft.description && localDraft.description) {
       mergedDraft.description = localDraft.description;

@@ -6,7 +6,18 @@ type DraftKey = "description" | "laborCost" | "partsCost" | "kilometer" | "payme
 const checkedKeys: DraftKey[] = ["description", "laborCost", "partsCost", "kilometer", "paymentStatus", "paidAmount", "notes"];
 
 function normalizeText(value: unknown) {
-  return typeof value === "string" ? value.trim().toLocaleLowerCase("tr-TR") : value;
+  return typeof value === "string"
+    ? value
+        .trim()
+        .toLocaleLowerCase("tr-TR")
+        .replace(/ı/g, "i")
+        .replace(/ş/g, "s")
+        .replace(/ç/g, "c")
+        .replace(/ğ/g, "g")
+        .replace(/ö/g, "o")
+        .replace(/ü/g, "u")
+        .replace(/\s+/g, " ")
+    : value;
 }
 
 function matchExpected(actual: unknown, expected: unknown) {

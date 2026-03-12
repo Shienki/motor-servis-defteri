@@ -8,6 +8,22 @@ function clampText(value: unknown, max = 250) {
   return value.trim().slice(0, max);
 }
 
+function toAscii(value: string) {
+  return value
+    .replace(/ı/g, "i")
+    .replace(/İ/g, "I")
+    .replace(/ş/g, "s")
+    .replace(/Ş/g, "S")
+    .replace(/ç/g, "c")
+    .replace(/Ç/g, "C")
+    .replace(/ğ/g, "g")
+    .replace(/Ğ/g, "G")
+    .replace(/ö/g, "o")
+    .replace(/Ö/g, "O")
+    .replace(/ü/g, "u")
+    .replace(/Ü/g, "U");
+}
+
 function parseTurkishNumber(rawValue: string) {
   const sanitized = rawValue.replace(/[^\d.,]/g, "").trim().replace(/[.,]+$/g, "");
   if (!sanitized) return null;
@@ -19,7 +35,7 @@ function parseTurkishNumber(rawValue: string) {
     normalized = normalized.replace(/,/g, "");
   } else if (normalized.includes(",") && !normalized.includes(".")) {
     normalized = normalized.replace(",", ".");
-  } else if (/^\d+\.\d{3}$/.test(normalized) || /^\d+\.\d{3}\.\d{3}$/.test(normalized)) {
+  } else if (/^\d+\.\d{3}(?:\.\d{3})*$/.test(normalized)) {
     normalized = normalized.replace(/\./g, "");
   }
 
@@ -28,18 +44,19 @@ function parseTurkishNumber(rawValue: string) {
 }
 
 export function normalizeTranscriptForExtraction(transcript: string) {
-  return transcript
-    .replace(/\bbabalar\b/giu, "bagalar")
-    .replace(/\bbakanlar\b/giu, "bagalar")
-    .replace(/\bbakan\b/giu, "baga")
-    .replace(/\bbaba\b/giu, "baga")
-    .replace(/\bbagan\b/giu, "baga")
-    .replace(/\bkese\b/giu, "kece")
-    .replace(/\bvurc\b/giu, "burc")
-    .replace(/\bburca\b/giu, "burc")
-    .replace(/\bfurca\b/giu, "furc")
+  return toAscii(transcript)
+    .toLocaleLowerCase("tr-TR")
+    .replace(/\bbabalar\b/gu, "bagalar")
+    .replace(/\bbakanlar\b/gu, "bagalar")
+    .replace(/\bbakan\b/gu, "baga")
+    .replace(/\bbaba\b/gu, "baga")
+    .replace(/\bbagan\b/gu, "baga")
+    .replace(/\bkese\b/gu, "kece")
+    .replace(/\bvurc\b/gu, "burc")
+    .replace(/\bburca\b/gu, "burc")
+    .replace(/\bfurca\b/gu, "furc")
     .replace(
-      /((?:iscilik|işçilik|yedek\s*parca|yedek\s*parça|parca|parça|kilometre|kilometer|km)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?)\s*[.:;=-]+\s*(\d)/giu,
+      /((?:iscilik|yedek\s*parca|parca|kilometre|kilometer|km)(?:\s+ucreti|\s+tutari)?)\s*[.:;=-]+\s*(\d)/gu,
       "$1 $2"
     )
     .replace(/\b(\d{1,3}(?:\.\d{3})+(?:,\d+)?)\b/gu, (_, value: string) => value.replace(/\./g, ""))
@@ -53,41 +70,6 @@ function extractNumberByPatterns(transcript: string, patterns: RegExp[]) {
     const candidate = match?.[1] ?? match?.[2];
     if (!candidate) continue;
     const parsed = parseTurkishNumber(candidate);
-    if (parsed !== null) return parsed;
-  }
-
-  return null;
-}
-
-function toAsciiExtractionText(transcript: string) {
-  return transcript
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ı/g, "i")
-    .replace(/iş/g, "is")
-    .replace(/ş/g, "s")
-    .replace(/ç/g, "c")
-    .replace(/ğ/g, "g")
-    .replace(/ö/g, "o")
-    .replace(/ü/g, "u");
-}
-
-function extractLabeledAmount(transcript: string, labels: string[]) {
-  const alternation = labels.join("|");
-  const segments = toAsciiExtractionText(transcript)
-    .split(/[.!?;]+/)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-
-  for (const segment of segments) {
-    if (!new RegExp(`(?:${alternation})`, "i").test(segment)) {
-      continue;
-    }
-
-    const parsed = extractNumberByPatterns(segment, [
-      new RegExp(`(?:${alternation})(?:\\s+ucreti|\\s+ucreti|\\s+tutari|\\s+tutari)?(?:\\s*[:=.-]\\s*)*(\\d[\\d.,]*)`, "i"),
-      new RegExp(`(\\d[\\d.,]*)\\s*(?:tl\\s+)?(?:${alternation})\\b`, "i")
-    ]);
-
     if (parsed !== null) {
       return parsed;
     }
@@ -96,10 +78,21 @@ function extractLabeledAmount(transcript: string, labels: string[]) {
   return null;
 }
 
+function extractLabeledAmount(transcript: string, labels: string[]) {
+  const source = normalizeTranscriptForExtraction(transcript);
+  const alternation = labels.join("|");
+  return extractNumberByPatterns(source, [
+    new RegExp(`(?:${alternation})(?:\\s+ucreti|\\s+tutari)?\\s*(?:[:=-]\\s*)?(\\d[\\d.,]*)`, "i"),
+    new RegExp(`(?:${alternation})\\s+(?:da|de|tuttu|oldu)\\s+(\\d[\\d.,]*)`, "i"),
+    new RegExp(`(\\d[\\d.,]*)\\s*(?:tl)?\\s+(?:${alternation})\\b`, "i")
+  ]);
+}
+
 function extractKilometerValue(transcript: string) {
-  const source = toAsciiExtractionText(transcript);
+  const source = normalizeTranscriptForExtraction(transcript);
   const afterLabel = source.match(/(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?([\s:=.,;-]*\d[\d.,\s]*)/i)?.[1] ?? "";
   const numericMatches = afterLabel.match(/\d[\d.,]*/g) ?? [];
+
   for (const candidate of numericMatches) {
     const parsed = parseTurkishNumber(candidate);
     if (parsed !== null) {
@@ -112,33 +105,37 @@ function extractKilometerValue(transcript: string) {
 
 function stripStructuredFieldsFromDescription(value: string) {
   return value
-    .replace(
-      /\b(?:iscilik|işçilik|iscilik)\b(?:\s+(?:ucreti|ücreti|tutari|tutarı))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
-      " "
-    )
-    .replace(
-      /\b(?:yedek\s*parca|yedek\s*parça|parca|parça)\b(?:\s+(?:ucreti|ücreti|tutari|tutarı))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
-      " "
-    )
-    .replace(/\b(?:kilometre|kilometer|km)\b(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*/giu, " ")
-    .replace(/\d[\d.,]*\s*(?:km|kilometre|kilometer)\b/giu, " ")
-    .replace(/\b(?:odeme|ödeme)\s+durumu\b\s*(?:paid|unpaid|partial|ödendi|odendi|ödenmedi|odenmedi|kısmi|kismi)?/giu, " ")
-    .replace(/\b(?:paid|unpaid|partial)\b/giu, " ")
+    .replace(/\b(?:iscilik)(?:\s+(?:ucreti|tutari))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/gu, " ")
+    .replace(/\b\d[\d.,]*\s*(?:tl)?\s+iscilik\b/gu, " ")
+    .replace(/\b(?:iscilik)(?:\s+(?:ucreti|tutari))\b/gu, " ")
+    .replace(/\biscilik\b/gu, " ")
+    .replace(/\b(?:yedek\s*parca|parca)(?:\s+(?:ucreti|tutari))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/gu, " ")
+    .replace(/\b\d[\d.,]*\s*(?:tl)?\s+(?:yedek\s*parca|parca)\b/gu, " ")
+    .replace(/\b(?:yedek\s*parca|parca)(?:\s+(?:ucreti|tutari))\b/gu, " ")
+    .replace(/\b(?:yedek\s*parca|parca)\b/gu, " ")
+    .replace(/\b(?:kilometre|kilometer|km)\b(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*/gu, " ")
+    .replace(/\d[\d.,]*\s*(?:km|kilometre|kilometer)\b/gu, " ")
+    .replace(/\b(?:kilometre|kilometer|km)\b/gu, " ")
+    .replace(/\b(?:odeme)\s+durumu\b\s*(?:paid|unpaid|partial|odendi|odenmedi|kismi)?/gu, " ")
+    .replace(/\b(?:paid|unpaid|partial)\b/gu, " ")
+    .replace(/\b(?:pesin alindi|kalan haftaya|gelecek hafta.*|haftaya.*|tekrar bakilacak.*|odemenin yarisi alindi)\b/gu, " ")
     .replace(/\b\d[\d.,]*\b/gu, " ")
     .replace(/\s{2,}/g, " ")
+    .replace(/\s+,/g, ",")
+    .replace(/,+/g, ",")
+    .replace(/^,\s*|\s*,\s*$|^,\s*,/g, "")
     .trim();
 }
 
 function cleanStructuredDescription(value: string) {
   const sanitized = clampText(value, 220)
-    .replace(/bagalar degisti/gi, "Bagalar değişti")
-    .replace(/baga degisti/gi, "Baga değişti")
-    .replace(/debriyaj balatasi/gi, "Debriyaj balatası")
-    .replace(/degisti/gi, "değişti")
-    .replace(/yapildi/gi, "yapıldı")
-    .replace(/takildi/gi, "takıldı")
+    .replace(/bagalar degisti/gi, "bagalar degisti")
+    .replace(/baga degisti/gi, "baga degisti")
+    .replace(/debriyaj balatasi/gi, "debriyaj balatasi")
     .replace(/\b0{2,}\b/g, "")
     .replace(/\s{2,}/g, " ")
+    .replace(/,+/g, ",")
+    .replace(/^,\s*|\s*,\s*$/g, "")
     .replace(/\s+([.,!?])/g, "$1")
     .trim();
 
@@ -146,7 +143,7 @@ function cleanStructuredDescription(value: string) {
     return "";
   }
 
-  if (!/[a-zA-ZçğıöşüÇĞİÖŞÜ]/.test(sanitized)) {
+  if (!/[a-z]/i.test(sanitized)) {
     return "";
   }
 
@@ -170,49 +167,34 @@ export function buildAssistantSummary(draft: AiRepairDraft) {
 }
 
 function inferPaymentStatus(transcript: string): PaymentStatus | null {
-  const lower = transcript.toLocaleLowerCase("tr-TR");
+  const lower = normalizeTranscriptForExtraction(transcript);
 
-  if (/(kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower)) return "partial";
-  if (/(odendi|ödendi|odedi|ödedi|hesap kapandi|hesap kapandı|tamamlandi|tamamlandı)/i.test(lower)) return "paid";
-  if (/(odenmedi|ödenmedi|veresiye|sonra alinacak|sonra alınacak|haftaya alinacak|haftaya alınacak)/i.test(lower)) {
-    return "unpaid";
-  }
+  if (/(kismi|pesin|kapora|kalan)/i.test(lower)) return "partial";
+  if (/(odendi|odedi|hesap kapandi|tamamlandi)/i.test(lower)) return "paid";
+  if (/(odenmedi|veresiye|sonra alinacak|haftaya alinacak|para sonra)/i.test(lower)) return "unpaid";
 
   return null;
 }
 
 export function buildLocalRepairDraft(transcript: string): AiRepairDraft {
   const cleaned = normalizeTranscriptForExtraction(transcript);
-  const lower = cleaned.toLocaleLowerCase("tr-TR");
   const segments = cleaned
     .split(/[.!?;,]+/)
     .map((segment) => segment.trim())
     .filter(Boolean);
 
-  const laborCost = extractLabeledAmount(cleaned, ["iscilik", "işçilik"]);
-  const partsCost = extractLabeledAmount(cleaned, ["yedek\\s*parca", "yedek\\s*parça", "parca", "parça"]);
+  const laborCost = extractLabeledAmount(cleaned, ["iscilik"]);
+  const partsCost = extractLabeledAmount(cleaned, ["yedek\\s*parca", "parca"]);
   const kilometer = extractKilometerValue(cleaned);
-  const paymentStatus =
-    inferPaymentStatus(cleaned) ??
-    (/(yarisi|yarısı|yarim|yarım|kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower) ? "partial" : null);
-  const hasPaymentPhrase = /(odeme|ödeme|odendi|ödendi|odedi|ödedi|odenmedi|ödenmedi|pesin|peşin|kalan|yarisi|yarısı|yarim|yarım|veresiye|para sonra|para sonra)/i.test(
-    lower
-  );
+  const paymentStatus = inferPaymentStatus(cleaned) ?? (/(yarisi|yarim|kismi|pesin|kapora|kalan)/i.test(cleaned) ? "partial" : null);
+  const hasPaymentPhrase = /(odeme|odendi|odedi|odenmedi|pesin|kalan|yarisi|yarim|veresiye|para sonra)/i.test(cleaned);
 
   const noteSegments = segments.filter((segment) =>
-    /(haftaya|sonra|tekrar|gelecek|kontrol edilecek|bakilacak|bakılacak|degisecek|değişecek|aranacak|haber verilecek)/i.test(
-      segment
-    )
+    /(haftaya|sonra|tekrar|gelecek|kontrol edilecek|bakilacak|degisecek|aranacak|haber verilecek|kalan)/i.test(segment)
   );
   const descriptionSegments = segments
     .map((segment) => stripStructuredFieldsFromDescription(segment))
-    .filter(
-      (segment) =>
-        Boolean(segment) &&
-        /(degisti|değişti|yapildi|yapıldı|takildi|takıldı|kontrol edildi|temizlendi|ayarlandi|ayarlandı|degisen|değişen)/i.test(
-          segment
-        )
-    );
+    .filter((segment) => Boolean(segment) && /(degisti|yapildi|takildi|kontrol edildi|temizlendi|ayarlandi|degisen)/i.test(segment));
 
   const draft: AiRepairDraft = {
     description: cleanStructuredDescription(descriptionSegments.join(". ")),
@@ -230,20 +212,17 @@ export function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     draft.partsCost = 0;
   }
 
-  if (paymentStatus === "partial" && /(yarisi|yarısı|yarim|yarım)/i.test(lower)) {
+  if (paymentStatus === "partial" && /(yarisi|yarim)/i.test(cleaned)) {
     const total = (draft.laborCost ?? 0) + (draft.partsCost ?? 0);
     if (total > 0) {
       draft.paidAmount = Math.round(total / 2);
     }
-    draft.notes = draft.notes
-      ? clampText(`${draft.notes}. Toplam odemenin yarisi alindi.`, 500)
-      : "Toplam odemenin yarisi alindi.";
+    draft.notes = draft.notes ? clampText(`${draft.notes}. toplam odemenin yarisi alindi.`, 500) : "toplam odemenin yarisi alindi.";
   }
 
   const explicitPaidAmount = extractNumberByPatterns(cleaned, [
-    /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin|peşin)\s*(?:alindi|alındı)/i,
-    /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin|peşin)\s*verdiler/i,
-    /(\d[\d.,]*)\s*(?:tl)?\s*(?:alindi|alındı|verdiler|verdi)/i
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin)\s*(?:alindi|verdiler)/i,
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:alindi|verdiler|verdi)/i
   ]);
   if (draft.paymentStatus === "partial" && explicitPaidAmount !== null) {
     draft.paidAmount = explicitPaidAmount;
