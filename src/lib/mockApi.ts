@@ -988,6 +988,14 @@ function parseTurkishNumber(rawValue: string) {
 
 function normalizeTranscriptForExtraction(transcript: string) {
   return transcript
+    .replace(/\bbakanlar\b/giu, "bagalar")
+    .replace(/\bbakan\b/giu, "baga")
+    .replace(/\bbaba\b/giu, "baga")
+    .replace(/\bbagan\b/giu, "baga")
+    .replace(/\bkese\b/giu, "kece")
+    .replace(/\bvurc\b/giu, "burc")
+    .replace(/\bburca\b/giu, "burc")
+    .replace(/\bfurca\b/giu, "furc")
     .replace(
       /((?:iscilik|işçilik|yedek\s*parca|yedek\s*parça|parca|parça|kilometre|kilometer|km)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?)\s*[.:;=-]+\s*(\d)/giu,
       "$1 $2"

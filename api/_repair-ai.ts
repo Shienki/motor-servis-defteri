@@ -39,6 +39,38 @@ En onemli gorevin:
 - baglama gore en yakin motosiklet parcasi veya islem terimine cevirmek
 - rakamlar ile etiketleri dogru eslestirmek
 
+Motosiklet terim sozlugu:
+- baga, bagalar
+- burc, burclar
+- kece
+- rulman
+- debriyaj balatasi
+- balata
+- varyator
+- kayis
+- zincir
+- disli
+- supap
+- segman
+- conta
+- buji
+- enjektor
+- karburator
+- amortisor
+- furc
+- on takim
+- arka takim
+- fren merkezi
+- debriyaj merkezi
+- yag, yag filtresi, hava filtresi
+
+Sik gorulen yanlis duyma ornekleri:
+- "bakan", "bakanlar", "baba", "bagan" -> baglama gore "baga" veya "bagalar"
+- "kese" -> "kece"
+- "vurc", "burca" -> "burc"
+- "furca" -> "furc"
+- anlamsiz bir kelime teknik baglama uymuyorsa en yakin mekanik terimi sec
+
 Motor ustasi baglaminda dusun:
 - "bakanlar" gibi alakasiz bir kelime motosiklet parcasi degildir
 - boyle bir durumda en yakin mantikli teknik ifadeyi sec
@@ -64,6 +96,8 @@ Kurallar:
 - Ornek: "iscilik ucreti. 1500. yedek parca 700" ise labor_cost=1500, parts_cost=700.
 - Ornek: "km. 22000" ise kilometer=22000.
 - Ornek: "500 pesin alindi, kalan haftaya" ise payment_status=partial.
+- Ornek: "baba degisti, iscilik 1500, parca 700" ise "baba" kelimesini baglama gore "baga" olarak duzelt.
+- Ornek: "bakanlar degisti, iscilik ucreti. 1500" ise "bakanlar" kelimesini teknik baglama gore "bagalar" ya da en yakin dogru terime duzelt.
 - Tutar uydurma. Metinde yoksa null birak.
 - Kilometre yoksa null birak.
 - Odeme durumu acik degilse null birak.
