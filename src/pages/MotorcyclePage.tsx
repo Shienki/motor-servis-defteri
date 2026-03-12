@@ -1,4 +1,4 @@
-import { MessageSquareMore, Phone, Plus, QrCode, StickyNote, Wrench } from "lucide-react";
+﻿import { MessageSquareMore, Phone, Plus, QrCode, StickyNote, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import QRCode from "qrcode";
@@ -19,7 +19,6 @@ import type { Motorcycle, PaymentStatus, Repair } from "../types";
 type DebtEditor = {
   repairId: string;
   paymentStatus: PaymentStatus;
-  paymentDueDate: string;
   newPaymentAmount: number;
   newPaymentDate: string;
   newPaymentNote: string;
@@ -57,7 +56,6 @@ export function MotorcyclePage() {
       setEditor({
         repairId: firstOpenDebt.id,
         paymentStatus: firstOpenDebt.paymentStatus,
-        paymentDueDate: firstOpenDebt.paymentDueDate ?? "",
         newPaymentAmount: 0,
         newPaymentDate: new Date().toISOString().slice(0, 10),
         newPaymentNote: ""
@@ -90,7 +88,6 @@ export function MotorcyclePage() {
     setEditor({
       repairId: repair.id,
       paymentStatus: repair.paymentStatus,
-      paymentDueDate: repair.paymentDueDate ?? "",
       newPaymentAmount: 0,
       newPaymentDate: new Date().toISOString().slice(0, 10),
       newPaymentNote: ""
@@ -102,7 +99,7 @@ export function MotorcyclePage() {
 
     await updateRepairDebt(editor.repairId, {
       paymentStatus: editor.paymentStatus,
-      paymentDueDate: editor.paymentDueDate || null,
+      paymentDueDate: selectedRepair?.paymentDueDate ?? null,
       notes: selectedRepair?.notes ?? "",
       newPayment:
         editor.newPaymentAmount > 0
@@ -212,7 +209,7 @@ export function MotorcyclePage() {
     return (
       <div className="px-4 py-5">
         <Panel>
-          <SectionTitle title="Kayıt bulunamadı" description="Bu plaka ile kayıtlı motosiklet bulunamadı." />
+          <SectionTitle title="KayÄ±t bulunamadÄ±" description="Bu plaka ile kayÄ±tlÄ± motosiklet bulunamadÄ±." />
         </Panel>
       </div>
     );
@@ -223,7 +220,7 @@ export function MotorcyclePage() {
       <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-amber-200">Motosiklet kaydı</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-amber-200">Motosiklet kaydÄ±</p>
             <div className="mt-3 inline-flex rounded-2xl border-2 border-amber bg-white px-5 py-3 text-ink shadow-sm">
               <h2 className="text-3xl font-black tracking-[0.18em]">{motorcycle.licensePlate}</h2>
             </div>
@@ -231,11 +228,11 @@ export function MotorcyclePage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/15 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/75">Güncel km</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/75">GÃ¼ncel km</p>
               <p className="mt-1 text-xl font-semibold">{motorcycle.kilometer.toLocaleString("tr-TR")} km</p>
             </div>
             <div className="rounded-2xl bg-amber px-4 py-3 text-ink">
-              <p className="text-xs uppercase tracking-[0.2em]">Ödenmemiş bakiye</p>
+              <p className="text-xs uppercase tracking-[0.2em]">Ã–denmemiÅŸ bakiye</p>
               <p className="mt-1 text-xl font-semibold">{formatCurrency(unpaidBalance)}</p>
             </div>
           </div>
@@ -243,7 +240,7 @@ export function MotorcyclePage() {
         <Link to={`/motosiklet/${motorcycle.id}/islem-yeni`}>
           <Button className="mt-5 w-full gap-2">
             <Plus size={18} />
-            Yeni İşlem Ekle
+            Yeni Ä°ÅŸlem Ekle
           </Button>
         </Link>
       </Panel>
@@ -251,7 +248,7 @@ export function MotorcyclePage() {
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-5">
           <Panel>
-            <SectionTitle eyebrow="Müşteri bilgileri" title={motorcycle.customerName} />
+            <SectionTitle eyebrow="MÃ¼ÅŸteri bilgileri" title={motorcycle.customerName} />
             <div className="mt-4 space-y-3 text-sm text-steel">
               <div className="flex items-center gap-3">
                 <Phone size={16} />
@@ -266,14 +263,14 @@ export function MotorcyclePage() {
 
           <Panel>
             <SectionTitle
-              eyebrow="QR üret"
-              title={trackingCard ? "Müşteri takip erişimi hazır" : "QR hazırlanamadı"}
+              eyebrow="QR Ã¼ret"
+              title={trackingCard ? "MÃ¼ÅŸteri takip eriÅŸimi hazÄ±r" : "QR hazÄ±rlanamadÄ±"}
               description={
                 trackingCard
                   ? trackingCard.workOrder
-                    ? "QR kodunu buradan üretip yazdırabilirsin. Aktif iş varsa müşteri devam eden süreci görür."
-                    : "Bu motosiklet için QR hazır. Aktif iş yoksa müşteri bunu görür."
-                  : "Bu motosiklet için takip kartı hazırlanamadı."
+                    ? "QR kodunu buradan Ã¼retip yazdÄ±rabilirsin. Aktif iÅŸ varsa mÃ¼ÅŸteri devam eden sÃ¼reci gÃ¶rÃ¼r."
+                    : "Bu motosiklet iÃ§in QR hazÄ±r. Aktif iÅŸ yoksa mÃ¼ÅŸteri bunu gÃ¶rÃ¼r."
+                  : "Bu motosiklet iÃ§in takip kartÄ± hazÄ±rlanamadÄ±."
               }
             />
             {trackingCard ? (
@@ -290,8 +287,8 @@ export function MotorcyclePage() {
                       <div className="flex items-center gap-3 text-ink">
                         <QrCode size={22} className="text-warning" />
                         <div>
-                          <p className="font-semibold">Takip bağlantısı hazır</p>
-                          <p className="text-xs text-steel">QR okutulunca müşteri ekranı otomatik açılır.</p>
+                          <p className="font-semibold">Takip baÄŸlantÄ±sÄ± hazÄ±r</p>
+                          <p className="text-xs text-steel">QR okutulunca mÃ¼ÅŸteri ekranÄ± otomatik aÃ§Ä±lÄ±r.</p>
                         </div>
                       </div>
                       {trackingCard.workOrder ? (
@@ -305,18 +302,18 @@ export function MotorcyclePage() {
                         </div>
                       ) : (
                         <p className="mt-4 text-sm text-steel">
-                          Şu an devam eden aktif iş yok. Müşteri QR okutursa bu bilgi gösterilir.
+                          Åu an devam eden aktif iÅŸ yok. MÃ¼ÅŸteri QR okutursa bu bilgi gÃ¶sterilir.
                         </p>
                       )}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Button className="w-full gap-2" variant="secondary" type="button" onClick={() => void printQrLabel()}>
                         <QrCode size={18} />
-                        QR Yazdır
+                        QR YazdÄ±r
                       </Button>
                       <Link to={trackingCard.publicTrackingPath}>
                         <Button className="w-full" variant="ghost">
-                          Müşteri Ekranını Aç
+                          MÃ¼ÅŸteri EkranÄ±nÄ± AÃ§
                         </Button>
                       </Link>
                     </div>
@@ -328,15 +325,15 @@ export function MotorcyclePage() {
 
           <Panel>
             <SectionTitle
-              eyebrow="Borç durumu"
+              eyebrow="BorÃ§ durumu"
               title={formatCurrency(unpaidBalance)}
-              description="Borç kaydına dokun, tahsil günü ve ödeme hareketlerini güncelle."
+              description="BorÃ§ kaydÄ±na dokun, tahsil gÃ¼nÃ¼ ve Ã¶deme hareketlerini gÃ¼ncelle."
             />
 
             <div className="mt-4 space-y-3">
               {unpaidRepairs.length === 0 ? (
                 <div className="rounded-2xl bg-success/10 p-4 text-sm text-success">
-                  Bu motosiklet için açık borç kalmadı.
+                  Bu motosiklet iÃ§in aÃ§Ä±k borÃ§ kalmadÄ±.
                 </div>
               ) : (
                 unpaidRepairs.map((repair) => {
@@ -357,7 +354,7 @@ export function MotorcyclePage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-semibold text-ink">{repair.description}</p>
-                          <p className="mt-1 text-sm text-steel">Tahsil günü: {formatShortDate(repair.paymentDueDate)}</p>
+                          <p className="mt-1 text-sm text-steel">Tahsil gÃ¼nÃ¼: {formatShortDate(repair.paymentDueDate)}</p>
                         </div>
                         <span className={`inline-flex rounded-full px-3 py-1 text-xs ${paymentStatusTone(repair.paymentStatus)}`}>
                           {paymentStatusLabel(repair.paymentStatus)}
@@ -365,7 +362,7 @@ export function MotorcyclePage() {
                       </div>
                       <div className="mt-3 grid gap-2 text-sm text-steel sm:grid-cols-3">
                         <p>Toplam: {formatCurrency(repair.totalCost)}</p>
-                        <p>Alınan: {formatCurrency(paid)}</p>
+                        <p>AlÄ±nan: {formatCurrency(paid)}</p>
                         <p>Kalan: {formatCurrency(remaining)}</p>
                       </div>
                     </button>
@@ -378,21 +375,21 @@ export function MotorcyclePage() {
           {selectedRepair && editor ? (
             <Panel>
               <SectionTitle
-                eyebrow="Borç düzenle"
+                eyebrow="BorÃ§ dÃ¼zenle"
                 title="Tahsilat ekle"
-                description="Kaydet sonrası ödeme alanı temizlenir ve durum tüm sayfalara yansır."
+                description="Kaydet sonrasÄ± Ã¶deme alanÄ± temizlenir ve durum tÃ¼m sayfalara yansÄ±r."
               />
 
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl bg-sand p-4 text-sm text-steel">
                   <p className="font-medium text-ink">{selectedRepair.description}</p>
                   <p className="mt-2">Toplam tutar: {formatCurrency(selectedRepair.totalCost)}</p>
-                  <p>Alınan toplam: {formatCurrency(getPaidAmount(selectedRepair))}</p>
+                  <p>AlÄ±nan toplam: {formatCurrency(getPaidAmount(selectedRepair))}</p>
                   <p>Kalan tutar: {formatCurrency(getRemainingAmount(selectedRepair))}</p>
                 </div>
 
                 <div>
-                  <Label>Ödeme durumu</Label>
+                  <Label>Ã–deme durumu</Label>
                   <select
                     className="min-h-12 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-sm outline-none focus:border-amber"
                     value={editor.paymentStatus}
@@ -402,15 +399,15 @@ export function MotorcyclePage() {
                       )
                     }
                   >
-                    <option value="unpaid">Ödenmedi</option>
-                    <option value="partial">Kısmi ödendi</option>
-                    <option value="paid">Ödendi</option>
+                    <option value="unpaid">Ã–denmedi</option>
+                    <option value="partial">KÄ±smi Ã¶dendi</option>
+                    <option value="paid">Ã–dendi</option>
                   </select>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label>Yeni alınan ödeme</Label>
+                    <Label>Yeni alÄ±nan Ã¶deme</Label>
                     <Input
                       type="number"
                       value={editor.newPaymentAmount}
@@ -423,7 +420,7 @@ export function MotorcyclePage() {
                   </div>
 
                   <div>
-                    <Label>Ödeme tarihi</Label>
+                    <Label>Ã–deme tarihi</Label>
                     <Input
                       type="date"
                       value={editor.newPaymentDate}
@@ -437,10 +434,10 @@ export function MotorcyclePage() {
                 </div>
 
                 <div>
-                  <Label>Ödeme notu</Label>
+                  <Label>Ã–deme notu</Label>
                   <Input
                     type="text"
-                    placeholder="Örnek: Elden 500 TL alındı"
+                    placeholder="Ã–rnek: Elden 500 TL alÄ±ndÄ±"
                     value={editor.newPaymentNote}
                     onChange={(event) =>
                       setEditor((current) =>
@@ -450,20 +447,7 @@ export function MotorcyclePage() {
                   />
                 </div>
 
-                <div>
-                  <Label>Sonraki tahsil günü</Label>
-                  <Input
-                    type="date"
-                    value={editor.paymentDueDate}
-                    onChange={(event) =>
-                      setEditor((current) =>
-                        current ? { ...current, paymentDueDate: event.target.value } : current
-                      )
-                    }
-                  />
-                </div>
-
-                <Button onClick={() => void saveDebtEditor()}>Tahsilatı kaydet</Button>
+                <Button onClick={() => void saveDebtEditor()}>TahsilatÄ± kaydet</Button>
               </div>
             </Panel>
           ) : null}
@@ -472,12 +456,12 @@ export function MotorcyclePage() {
         <Panel>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <SectionTitle
-              eyebrow="Geçmiş işlemler"
-              title="Servis geçmişi"
-              description="Varsayılan olarak sadece açık işlemler gösterilir."
+              eyebrow="GeÃ§miÅŸ iÅŸlemler"
+              title="Servis geÃ§miÅŸi"
+              description="VarsayÄ±lan olarak sadece aÃ§Ä±k iÅŸlemler gÃ¶sterilir."
             />
             <Button type="button" variant="ghost" onClick={() => setShowPaidHistory((current) => !current)}>
-              {showPaidHistory ? "Ödenenleri gizle" : `Ödenenleri göster (${paidRepairs.length})`}
+              {showPaidHistory ? "Ã–denenleri gizle" : `Ã–denenleri gÃ¶ster (${paidRepairs.length})`}
             </Button>
           </div>
           <div className="mt-5 space-y-4">
@@ -513,11 +497,11 @@ export function MotorcyclePage() {
                       <p className="mt-1">{repair.kilometer.toLocaleString("tr-TR")} km</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-mist">İşçilik</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-mist">Ä°ÅŸÃ§ilik</p>
                       <p className="mt-1">{formatCurrency(repair.laborCost)}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-mist">Yedek parça</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-mist">Yedek parÃ§a</p>
                       <p className="mt-1">{formatCurrency(repair.partsCost)}</p>
                     </div>
                   </div>
@@ -528,7 +512,7 @@ export function MotorcyclePage() {
                       <p className="font-semibold text-ink">{formatCurrency(repair.totalCost)}</p>
                     </div>
                     <div>
-                      <p>Alınan toplam</p>
+                      <p>AlÄ±nan toplam</p>
                       <p className="font-semibold text-ink">{formatCurrency(paid)}</p>
                     </div>
                     <div>
@@ -537,12 +521,12 @@ export function MotorcyclePage() {
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm text-steel">Tahsil günü: {formatShortDate(repair.paymentDueDate)}</p>
+                  <p className="mt-3 text-sm text-steel">Tahsil gÃ¼nÃ¼: {formatShortDate(repair.paymentDueDate)}</p>
 
                   <div className="mt-4 rounded-2xl border border-slate/10 p-4">
-                    <p className="text-sm font-semibold text-ink">Alınan ödemeler</p>
+                    <p className="text-sm font-semibold text-ink">AlÄ±nan Ã¶demeler</p>
                     {repair.paymentEntries.length === 0 ? (
-                      <p className="mt-2 text-sm text-steel">Henüz ödeme alınmadı.</p>
+                      <p className="mt-2 text-sm text-steel">HenÃ¼z Ã¶deme alÄ±nmadÄ±.</p>
                     ) : (
                       <div className="mt-3 space-y-2">
                         {sortedEntries.map((entry, index) => {
@@ -558,7 +542,7 @@ export function MotorcyclePage() {
                               </div>
                               <p className="mt-1">{entry.note}</p>
                               <p className="mt-1 text-xs">
-                                Bu ödeme sonrası kalan: {formatCurrency(repair.totalCost - cumulativePaid)}
+                                Bu Ã¶deme sonrasÄ± kalan: {formatCurrency(repair.totalCost - cumulativePaid)}
                               </p>
                             </div>
                           );
@@ -572,15 +556,16 @@ export function MotorcyclePage() {
           </div>
           {displayedHistory.length === 0 ? (
             <div className="mt-5 rounded-2xl bg-sand p-4 text-sm text-steel">
-              Gösterilecek işlem bulunmuyor.
+              GÃ¶sterilecek iÅŸlem bulunmuyor.
             </div>
           ) : null}
           <div className="mt-5 flex items-center gap-2 rounded-2xl border border-dashed border-slate/20 p-4 text-sm text-steel">
             <MessageSquareMore size={16} />
-            Yeni işlem ekleyince ses kaydı özet ekranına düşecek, kayıttan sonra buraya eklenecek.
+            Yeni iÅŸlem ekleyince ses kaydÄ± Ã¶zet ekranÄ±na dÃ¼ÅŸecek, kayÄ±ttan sonra buraya eklenecek.
           </div>
         </Panel>
       </div>
     </div>
   );
 }
+
