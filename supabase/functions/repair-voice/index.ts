@@ -109,22 +109,10 @@ Deno.serve(async (request) => {
 
   try {
     const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-    const authHeader = request.headers.get("Authorization") ?? "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
 
     if (!openAiKey) {
       return new Response(JSON.stringify({ error: "Function ortam değişkenleri eksik." }), {
         status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
-    }
-
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Oturum gerekli." }), {
-        status: 401,
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json"
