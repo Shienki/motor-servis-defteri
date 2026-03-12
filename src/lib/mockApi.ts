@@ -988,6 +988,7 @@ function parseTurkishNumber(rawValue: string) {
 
 function normalizeTranscriptForExtraction(transcript: string) {
   return transcript
+    .replace(/\bbabalar\b/giu, "bagalar")
     .replace(/\bbakanlar\b/giu, "bagalar")
     .replace(/\bbakan\b/giu, "baga")
     .replace(/\bbaba\b/giu, "baga")
@@ -1045,7 +1046,7 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     /(\d[\d.,]*)\s*tl\s*(?:yedek\s*parca|yedek\s*parça|parca|parça)/i
   ]);
   const kilometer = extractNumberByPatterns(cleaned, [
-    /(?:kilometre|kilometer|km)(?:de|deki)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
+    /(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
     /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)/i
   ]);
   const paymentStatus =
