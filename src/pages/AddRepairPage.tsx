@@ -12,6 +12,7 @@ const emptyDraft: AiRepairDraft = {
   partsCost: null,
   kilometer: null,
   paymentStatus: null,
+  paidAmount: null,
   notes: "",
   assistantSummary: ""
 };
@@ -59,6 +60,7 @@ function buildAssistantSummary(draft: AiRepairDraft) {
     draft.paymentStatus
       ? `Odeme durumu: ${draft.paymentStatus === "paid" ? "odendi" : draft.paymentStatus === "partial" ? "kismi" : "odenmedi"}`
       : null,
+    draft.paymentStatus === "partial" && draft.paidAmount !== null ? `Alinan odeme: ${draft.paidAmount} TL` : null,
     draft.notes ? `Not: ${draft.notes}` : null
   ].filter(Boolean);
 
@@ -116,6 +118,7 @@ export function AddRepairPage() {
       const parsedDraft = await analyzeRepairTranscript(transcript);
       setDraft({
         ...parsedDraft,
+        paidAmount: parsedDraft.paidAmount ?? null,
         assistantSummary: parsedDraft.assistantSummary?.trim() || buildAssistantSummary(parsedDraft)
       });
       setStatusMessage("AI kaydi hazirladi. Metni ve alanlari kontrol edip kaydedebilirsin.");
@@ -328,7 +331,7 @@ export function AddRepairPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={`grid gap-4 ${draft.paymentStatus === "partial" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
             <div>
               <Label>Kilometre</Label>
               <Input
@@ -352,7 +355,8 @@ export function AddRepairPage() {
                 onChange={(event) =>
                   setDraft((current) => ({
                     ...current,
-                    paymentStatus: (event.target.value || null) as PaymentStatus | null
+                    paymentStatus: (event.target.value || null) as PaymentStatus | null,
+                    paidAmount: event.target.value === "partial" ? current.paidAmount : null
                   }))
                 }
               >
@@ -362,6 +366,23 @@ export function AddRepairPage() {
                 <option value="unpaid">Odenmedi</option>
               </select>
             </div>
+
+            {draft.paymentStatus === "partial" ? (
+              <div>
+                <Label>Alinan odeme</Label>
+                <Input
+                  inputMode="numeric"
+                  placeholder="Ornek: 500"
+                  value={draft.paidAmount ?? ""}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      paidAmount: numbersOnly(event.target.value) ? Number(numbersOnly(event.target.value)) : null
+                    }))
+                  }
+                />
+              </div>
+            ) : null}
           </div>
 
           <div>

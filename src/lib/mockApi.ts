@@ -965,6 +965,7 @@ export async function simulateVoiceExtraction(): Promise<AiRepairDraft> {
     partsCost: 700,
     kilometer: 18720,
     paymentStatus: "partial",
+    paidAmount: 500,
     notes: "500 TL peşin alındı, kalan haftaya ödenecek."
   };
 }
@@ -1166,6 +1167,7 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     partsCost,
     kilometer,
     paymentStatus,
+    paidAmount: null,
     notes: clampText(noteSegments.join(". "), 500),
     assistantSummary: ""
   };
@@ -1176,9 +1178,21 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
   }
 
   if (paymentStatus === "partial" && /(yarisi|yarısı|yarim|yarım)/i.test(lower)) {
+    const total = (draft.laborCost ?? 0) + (draft.partsCost ?? 0);
+    if (total > 0) {
+      draft.paidAmount = Math.round(total / 2);
+    }
     draft.notes = draft.notes
       ? clampText(`${draft.notes}. Toplam odemenin yarisi alindi.`, 500)
       : "Toplam odemenin yarisi alindi.";
+  }
+
+  const explicitPaidAmount = extractNumberByPatterns(cleaned, [
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin|peşin)\s*alindi/i,
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:alindi|alındı)/i
+  ]);
+  if (draft.paymentStatus === "partial" && explicitPaidAmount !== null) {
+    draft.paidAmount = explicitPaidAmount;
   }
 
   draft.assistantSummary = buildAssistantSummary(draft);
@@ -1226,6 +1240,7 @@ export async function analyzeRepairTranscript(
       partsCost: null,
       kilometer: null,
       paymentStatus: null,
+      paidAmount: null,
       notes: "",
       assistantSummary: "Metin bulunamadi."
     };
@@ -1270,6 +1285,7 @@ export async function analyzeRepairTranscript(
       partsCost: parsed.parts_cost ?? null,
       kilometer: parsed.kilometer ?? null,
       paymentStatus: parsed.payment_status ?? null,
+      paidAmount: null,
       notes: clampText(parsed.notes, 500),
       assistantSummary: clampText(parsed.assistant_summary, 500)
     });
@@ -1280,6 +1296,7 @@ export async function analyzeRepairTranscript(
       partsCost: localDraft.partsCost ?? aiDraft.partsCost ?? null,
       kilometer: localDraft.kilometer ?? aiDraft.kilometer ?? null,
       paymentStatus: localDraft.paymentStatus ?? aiDraft.paymentStatus ?? null,
+      paidAmount: localDraft.paidAmount ?? aiDraft.paidAmount ?? null,
       notes: localDraft.notes || aiDraft.notes,
       assistantSummary: aiDraft.assistantSummary || ""
     });
@@ -1313,6 +1330,8 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
   const safeLabor = clampNumber(draft.laborCost, 0, 999999);
   const safeParts = clampNumber(draft.partsCost, 0, 999999);
   const totalCost = safeLabor + safeParts;
+  const safePaidAmount =
+    draft.paymentStatus === "partial" && draft.paidAmount !== null ? clampNumber(draft.paidAmount, 0, totalCost) : 0;
 
   const initialPaymentEntries: PaymentEntry[] =
     draft.paymentStatus === "paid"
@@ -1324,6 +1343,15 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
             note: "İşlem onayında tam ödeme alındı."
           }
         ]
+      : draft.paymentStatus === "partial" && safePaidAmount > 0
+        ? [
+            {
+              id: crypto.randomUUID(),
+              amount: safePaidAmount,
+              paidAt: new Date().toISOString().slice(0, 10),
+              note: "İşlem onayında kısmi ödeme alındı."
+            }
+          ]
       : [];
 
   const nextRepair: Repair = normalizeRepair({

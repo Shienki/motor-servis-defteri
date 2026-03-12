@@ -62,6 +62,7 @@ export type AiRepairDraft = {
   partsCost: number | null;
   kilometer: number | null;
   paymentStatus: PaymentStatus | null;
+  paidAmount: number | null;
   notes: string;
   assistantSummary?: string;
 };

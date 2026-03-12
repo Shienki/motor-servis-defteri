@@ -354,6 +354,8 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
   const labor = Number(draft.laborCost ?? 0);
   const parts = Number(draft.partsCost ?? 0);
   const total = labor + parts;
+  const partialPaidAmount =
+    draft.paymentStatus === "partial" && draft.paidAmount !== null ? Math.max(0, Math.min(Number(draft.paidAmount), total)) : 0;
   const { data, error } = await client
     .from("repairs")
     .insert({
@@ -378,6 +380,14 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
       amount: total,
       paid_at: new Date().toISOString().slice(0, 10),
       note: "İşlem onayında tam ödeme alındı."
+    });
+  } else if (draft.paymentStatus === "partial" && partialPaidAmount > 0) {
+    await client.from("payment_entries").insert({
+      repair_id: data.id,
+      user_id: userId,
+      amount: partialPaidAmount,
+      paid_at: new Date().toISOString().slice(0, 10),
+      note: "İşlem onayında kısmi ödeme alındı."
     });
   }
 
