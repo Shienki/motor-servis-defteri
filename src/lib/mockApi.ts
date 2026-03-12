@@ -758,12 +758,14 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
         .filter((item) => item.motorcycleId === motorcycleId)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
 
+    const trackingToken = workOrder?.publicTrackingToken || `moto:${motorcycle.id}`;
+
     return {
       motorcycle,
       history,
       workOrder,
-      qrToken: `moto:${motorcycle.id}`,
-      publicTrackingPath: `/takip/moto:${motorcycle.id}`
+      qrToken: trackingToken,
+      publicTrackingPath: `/takip/${trackingToken}`
     };
   }
 
@@ -782,11 +784,13 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
       .filter((item) => item.motorcycleId === motorcycleId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
 
+  const trackingToken = workOrder?.publicTrackingToken || `moto:${motorcycle.id}`;
+
   return {
     motorcycle,
     workOrder,
-    qrToken: `moto:${motorcycle.id}`,
-    publicTrackingPath: `/takip/moto:${motorcycle.id}`
+    qrToken: trackingToken,
+    publicTrackingPath: `/takip/${trackingToken}`
   };
 }
 
