@@ -40,6 +40,15 @@ const quickStatusOptions: { value: WorkOrderStatus; label: string }[] = [
   { value: "delivered", label: "Teslim edildi" }
 ];
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function defaultCustomerStatusNote(status: WorkOrderStatus) {
   if (status === "received") return "Motosiklet sıraya alındı.";
   if (status === "in_progress") return "Servis işlemi hazırlanıyor.";
@@ -218,9 +227,9 @@ export function MotorcyclePage() {
         </head>
         <body>
           <div class="label">
-            <div class="plate">${motorcycle.licensePlate}</div>
+            <div class="plate">${escapeHtml(motorcycle.licensePlate)}</div>
             <img src="${qrImage}" alt="QR kodu" />
-            <div class="model">${motorcycle.model}</div>
+            <div class="model">${escapeHtml(motorcycle.model)}</div>
           </div>
           <script>
             window.onload = function () {
@@ -242,7 +251,7 @@ export function MotorcyclePage() {
 
     await updateWorkOrderStatus(existingWorkOrder.id, {
       status: trackingStatus,
-      customerVisibleNote: trackingNote || defaultCustomerStatusNote(trackingStatus),
+      customerVisibleNote: trackingStatus === "delivered" ? "" : trackingNote || defaultCustomerStatusNote(trackingStatus),
       internalNote: existingWorkOrder.internalNote ?? "",
       estimatedDeliveryDate: existingWorkOrder.estimatedDeliveryDate ?? null
     });

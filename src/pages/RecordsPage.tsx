@@ -30,13 +30,13 @@ export function RecordsPage() {
         <SectionTitle
           eyebrow="Kayıt menüsü"
           title="Tüm motosiklet kayıtları"
-          description="Buradan tüm kayıtları açabilir veya yeni kayıt başlatabilirsin."
+          description="Buradan kayıtları açabilir veya yeni kayıt başlatabilirsin."
         />
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-mist" size={18} />
             <Input
-              className="border-white/10 bg-white/10 pl-11 text-white placeholder:text-sand/50"
+              className="border-white/10 bg-white/10 pl-11 text-white placeholder:text-sand/60"
               placeholder="Plaka ara"
               value={query}
               onChange={(event) => setQuery(formatPlateDisplay(event.target.value))}
@@ -55,7 +55,7 @@ export function RecordsPage() {
         <SectionTitle
           eyebrow="Kayıt listesi"
           title={`${filtered.length} motosiklet`}
-          description="Sağdaki oka dokunarak ilgili motosiklet kaydını aç."
+          description="Sağdaki oka dokunarak ilgili motor kaydını aç."
         />
         <div className="mt-5 space-y-3">
           {filtered.map((motorcycle) => (

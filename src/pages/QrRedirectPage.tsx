@@ -32,7 +32,7 @@ export function QrRedirectPage() {
           <SectionTitle
             eyebrow="QR yönlendirme"
             title="Kayıt açılıyor"
-            description="Oturum durumuna göre iç ekran veya müşteri takip ekranı açılıyor."
+            description="Oturum varsa iç ekran, yoksa müşteri takip ekranı açılır."
           />
         </Panel>
       </div>

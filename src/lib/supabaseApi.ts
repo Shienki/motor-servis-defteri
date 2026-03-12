@@ -8,7 +8,7 @@ import type {
   WorkOrderStatus
 } from "../types";
 import { currentUser } from "../data/mockData";
-import { canonicalPlate, formatPlateDisplay } from "./format";
+import { canonicalPlate, formatPlateDisplay, normalizeWorkOrderStatus } from "./format";
 import { supabase } from "./supabase";
 
 function requireSupabase() {
@@ -88,7 +88,7 @@ function mapWorkOrder(row: any) {
     motorcycleId: row.motorcycle_id,
     userId: row.user_id,
     complaint: row.complaint,
-    status: row.status as WorkOrderStatus,
+    status: normalizeWorkOrderStatus(row.status) as WorkOrderStatus,
     estimatedDeliveryDate: row.estimated_delivery_date,
     publicTrackingToken: row.public_tracking_token,
     qrValue: row.qr_value,
@@ -454,7 +454,7 @@ export async function fetchServiceManagementSummary() {
   return {
     totalActive: workOrders.filter((item) => item.status !== "delivered").length,
     readyCount: workOrders.filter((item) => item.status === "ready").length,
-    waitingPartsCount: workOrders.filter((item) => item.status === "waiting_parts").length,
+    waitingPartsCount: workOrders.filter((item) => item.status === "in_progress").length,
     deliveredToday: workOrders.filter((item) => item.status === "delivered").length,
     workOrders
   };

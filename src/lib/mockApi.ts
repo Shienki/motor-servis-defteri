@@ -20,7 +20,7 @@ import type {
   WorkOrderStatus
 } from "../types";
 import { integrationStatus } from "./env";
-import { canonicalPlate, formatPlateDisplay } from "./format";
+import { canonicalPlate, formatPlateDisplay, normalizeWorkOrderStatus } from "./format";
 import {
   buildAssistantSummary as buildSharedAssistantSummary,
   buildLocalRepairDraft as buildSharedLocalRepairDraft,
@@ -231,23 +231,12 @@ function sanitizeWorkOrder(item: unknown): WorkOrder | null {
   }
 
   const value = item as Partial<WorkOrder>;
-  const statuses: WorkOrderStatus[] = [
-    "received",
-    "inspection",
-    "in_progress",
-    "waiting_parts",
-    "waiting_approval",
-    "testing",
-    "ready",
-    "delivered"
-  ];
-
   return {
     id: clampText(value.id || crypto.randomUUID(), 80),
     motorcycleId: clampText(value.motorcycleId, 80),
     userId: clampText(value.userId || currentUser.id, 80),
     complaint: clampText(value.complaint, 220),
-    status: statuses.includes(value.status as WorkOrderStatus) ? (value.status as WorkOrderStatus) : "received",
+    status: normalizeWorkOrderStatus(value.status as string) as WorkOrderStatus,
     estimatedDeliveryDate:
       typeof value.estimatedDeliveryDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.estimatedDeliveryDate)
         ? value.estimatedDeliveryDate
@@ -736,7 +725,7 @@ export async function fetchServiceManagementSummary() {
   return {
     totalActive: workOrders.filter((item) => item.status !== "delivered").length,
     readyCount: workOrders.filter((item) => item.status === "ready").length,
-    waitingPartsCount: workOrders.filter((item) => item.status === "waiting_parts").length,
+    waitingPartsCount: workOrders.filter((item) => item.status === "in_progress").length,
     deliveredToday: workOrders.filter((item) => item.status === "delivered").length,
     workOrders
   };
@@ -808,7 +797,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
     motorcycleId,
     userId: activeUserId,
     complaint: "Servis takip süreci",
-    status: "received",
+      status: "received",
     estimatedDeliveryDate: null,
     publicTrackingToken: crypto.randomUUID(),
     qrValue: `moto:${motorcycleId}`,

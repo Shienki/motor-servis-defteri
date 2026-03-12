@@ -9,9 +9,7 @@ import { DebtsPage } from "./pages/DebtsPage";
 import { RecordsPage } from "./pages/RecordsPage";
 import { NewMotorcyclePage } from "./pages/NewMotorcyclePage";
 import { AccountPage } from "./pages/AccountPage";
-import { ServiceManagementPage } from "./pages/ServiceManagementPage";
 import { PublicTrackingPage } from "./pages/PublicTrackingPage";
-import { QrHubPage } from "./pages/QrHubPage";
 import { QrRedirectPage } from "./pages/QrRedirectPage";
 import { CameraScannerPage } from "./pages/CameraScannerPage";
 
@@ -27,8 +25,6 @@ export default function App() {
         <Route path="/panel" element={<DashboardPage />} />
         <Route path="/kamera" element={<CameraScannerPage />} />
         <Route path="/hesap" element={<AccountPage />} />
-        <Route path="/servis-yonetimi" element={<ServiceManagementPage />} />
-        <Route path="/qr-merkezi" element={<QrHubPage />} />
         <Route path="/kayitlar" element={<RecordsPage />} />
         <Route path="/motosiklet-yeni" element={<NewMotorcyclePage />} />
         <Route path="/motosiklet/:motorcycleId" element={<MotorcyclePage />} />

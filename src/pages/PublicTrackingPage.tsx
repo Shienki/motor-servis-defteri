@@ -62,7 +62,7 @@ export function PublicTrackingPage() {
                 </span>
               ) : (
                 <span className="mt-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs text-white">
-                  Aktif iş emri bulunmamaktadır
+                  Şu an aktif iş yok
                 </span>
               )}
             </div>
@@ -95,7 +95,7 @@ export function PublicTrackingPage() {
           <div className="mt-5 rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
             <p className="font-medium text-ink">Servis notu</p>
             <p className="mt-2">
-              {data.workOrder?.customerVisibleNote || "Aktif iş emri olmadığı için paylaşılmış servis notu bulunmuyor."}
+              {data.workOrder?.customerVisibleNote || "Aktif iş olmadığı için gösterilecek servis notu bulunmuyor."}
             </p>
           </div>
         </Panel>
@@ -111,11 +111,7 @@ export function PublicTrackingPage() {
               <div key={item.id} className="rounded-2xl border border-slate/10 bg-sand px-4 py-4 text-sm text-steel">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium text-ink">{formatShortDate(item.createdAt.slice(0, 10))}</span>
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs ${
-                      data.workOrder ? workOrderStatusTone(data.workOrder.status) : "bg-ink/10 text-ink"
-                    }`}
-                  >
+                  <span className={`inline-flex rounded-full px-3 py-1 text-xs ${data.workOrder ? workOrderStatusTone(data.workOrder.status) : "bg-ink/10 text-ink"}`}>
                     Güncelleme
                   </span>
                 </div>
@@ -124,9 +120,7 @@ export function PublicTrackingPage() {
             ))}
             {!data.customerUpdates.length ? (
               <div className="rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
-                {data.workOrder
-                  ? "Henüz paylaşılmış durum güncellemesi yok."
-                  : "Aktif iş emri bulunmadığı için gösterilecek süreç güncellemesi yok."}
+                {data.workOrder ? "Henüz paylaşılmış durum güncellemesi yok." : "Aktif iş olmadığı için gösterilecek süreç güncellemesi yok."}
               </div>
             ) : null}
           </div>
@@ -166,7 +160,7 @@ export function PublicTrackingPage() {
             <Phone size={18} className="text-warning" />
             <div>
               <p className="font-medium text-ink">{data.shopName}</p>
-              <p>{data.shopPhone}</p>
+              <p>{data.shopPhone || "Telefon bilgisi paylaşılmadı"}</p>
             </div>
           </div>
         </Panel>

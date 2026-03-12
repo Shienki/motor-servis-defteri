@@ -1,4 +1,53 @@
-import { getSupabaseServiceClient, requireAuthenticatedUser } from "./_supabase";
+function getEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} tanımlı değil.`);
+  }
+  return value;
+}
+
+function restUrl(path: string) {
+  return `${getEnv("VITE_SUPABASE_URL")}/rest/v1/${path}`;
+}
+
+function serviceHeaders() {
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  return {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json"
+  };
+}
+
+async function fetchRest(path: string) {
+  const response = await fetch(restUrl(path), { headers: serviceHeaders() });
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
+
+async function getAuthenticatedUserId(req: any) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!token) {
+    return null;
+  }
+
+  const response = await fetch(`${getEnv("VITE_SUPABASE_URL")}/auth/v1/user`, {
+    headers: {
+      apikey: getEnv("VITE_SUPABASE_ANON_KEY"),
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const user = await response.json();
+  return user?.id ?? null;
+}
 
 function isMotorcycleToken(token: string) {
   return token.startsWith("moto:");
@@ -17,27 +66,19 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { user } = await requireAuthenticatedUser(req);
-    const serviceClient = getSupabaseServiceClient();
+    const userId = await getAuthenticatedUserId(req);
 
     if (isMotorcycleToken(token)) {
       const motorcycleId = token.slice("moto:".length);
-      const { data: motorcycle, error } = await serviceClient
-        .from("motorcycles")
-        .select("id, user_id")
-        .eq("id", motorcycleId)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
+      const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=id,user_id&limit=1`);
+      const motorcycle = motorcycles[0] ?? null;
 
       if (!motorcycle) {
         res.status(404).json({ error: "QR kaydı bulunamadı." });
         return;
       }
 
-      if (user && user.id === motorcycle.user_id) {
+      if (userId && userId === motorcycle.user_id) {
         res.status(200).json({ path: `/motosiklet/${motorcycle.id}` });
         return;
       }
@@ -46,22 +87,17 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const { data: workOrder, error } = await serviceClient
-      .from("work_orders")
-      .select("motorcycle_id, user_id, public_tracking_token")
-      .eq("public_tracking_token", token)
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
+    const workOrders = await fetchRest(
+      `work_orders?public_tracking_token=eq.${encodeURIComponent(token)}&select=motorcycle_id,user_id,public_tracking_token&limit=1`
+    );
+    const workOrder = workOrders[0] ?? null;
 
     if (!workOrder) {
       res.status(404).json({ error: "QR kaydı bulunamadı." });
       return;
     }
 
-    if (user && user.id === workOrder.user_id) {
+    if (userId && userId === workOrder.user_id) {
       res.status(200).json({ path: `/motosiklet/${workOrder.motorcycle_id}` });
       return;
     }

@@ -38,10 +38,7 @@ export function AccountPage() {
           <p className="text-sm">Bu alan sade tutuldu. Usta için önemli olan hızlı giriş ve hızlı çıkış.</p>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <Button variant="secondary" onClick={() => navigate("/servis-yonetimi")}>
-            Aktif İşler
-          </Button>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Button variant="ghost" onClick={() => navigate("/panel")}>
             Panele Dön
           </Button>

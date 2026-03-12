@@ -2,11 +2,7 @@ export type PaymentStatus = "paid" | "unpaid" | "partial";
 
 export type WorkOrderStatus =
   | "received"
-  | "inspection"
   | "in_progress"
-  | "waiting_parts"
-  | "waiting_approval"
-  | "testing"
   | "ready"
   | "delivered";
 

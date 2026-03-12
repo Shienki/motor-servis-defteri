@@ -38,8 +38,8 @@ export function CameraScannerPage() {
   const isNewRecordFlow = target === "yeni-kayit";
   const [status, setStatus] = useState(
     isNewRecordFlow
-      ? "Kamerayı açıyorum. Plaka için telefonu 1-2 saniye sabit tut."
-      : "Kamerayı açıyorum. QR için kameraya göster, plaka için telefonu 1-2 saniye sabit tut."
+      ? "Kamera açılıyor. Telefonu plakaya 1-2 saniye sabit tut."
+      : "Kamera açılıyor. QR için etiketi göster, plaka için telefonu sabit tut."
   );
   const [cameraReady, setCameraReady] = useState(false);
   const [lastDetected, setLastDetected] = useState("");
@@ -51,9 +51,7 @@ export function CameraScannerPage() {
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" }
-          },
+          video: { facingMode: { ideal: "environment" } },
           audio: false
         });
 
@@ -104,10 +102,7 @@ export function CameraScannerPage() {
       try {
         const codes = await detector.detect(videoRef.current);
         const rawValue = codes?.[0]?.rawValue?.trim();
-
-        if (!rawValue) {
-          return;
-        }
+        if (!rawValue) return;
 
         solvedRef.current = true;
         setLastDetected(rawValue);
@@ -178,7 +173,7 @@ export function CameraScannerPage() {
 
         navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(plate)}&yontem=kamera`, { replace: true });
       } catch {
-        setSupportNote("Plaka OCR denemesi sürüyor. Kamerayı plakaya daha yakın ve sabit tut.");
+        setSupportNote("Plaka okunamadıysa kamerayı biraz daha yaklaştırıp sabit tut.");
       } finally {
         ocrBusyRef.current = false;
       }
@@ -195,8 +190,8 @@ export function CameraScannerPage() {
           title={isNewRecordFlow ? "Plakayı okut" : "QR veya plakayı okut"}
           description={
             isNewRecordFlow
-              ? "Foto çekme yok. Kamera canlı akıştan plaka yazısını okumaya çalışır."
-              : "Foto çekme yok. Kamera canlı akıştan önce QR kodu, bulamazsa plaka yazısını okumaya çalışır."
+              ? "Foto çekmeden canlı görüntüden sadece plaka okunur."
+              : "Foto çekmeden canlı görüntüden önce QR, bulunamazsa plaka okunur."
           }
         />
 
@@ -212,16 +207,16 @@ export function CameraScannerPage() {
                 <QrCode size={16} />
                 <span className="font-medium">QR öncelikli</span>
               </div>
-              <p className="mt-2 text-white/75">QR görünürse anında yönlendirir.</p>
+              <p className="mt-2 text-white/75">QR görünürse anında doğru ekrana gider.</p>
             </div>
           ) : null}
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
               <ScanLine size={16} />
-              <span className="font-medium">Plaka OCR</span>
+              <span className="font-medium">Plaka okuma</span>
             </div>
             <p className="mt-2 text-white/75">
-              {isNewRecordFlow ? "Canlı görüntüden plakayı okur." : "QR yoksa canlı görüntüden plakayı okur."}
+              {isNewRecordFlow ? "Canlı görüntüden plaka aranır." : "QR yoksa plakadan devam edilir."}
             </p>
           </div>
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">

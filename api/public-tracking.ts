@@ -1,4 +1,43 @@
-import { getSupabaseServiceClient } from "./_supabase";
+type WorkOrderRow = {
+  id: string;
+  motorcycle_id: string;
+  complaint: string;
+  status: string;
+  estimated_delivery_date: string | null;
+  updated_at: string;
+  customer_visible_note: string | null;
+};
+
+function getEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} tanımlı değil.`);
+  }
+  return value;
+}
+
+function serviceHeaders() {
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  return {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json"
+  };
+}
+
+function restUrl(path: string) {
+  return `${getEnv("VITE_SUPABASE_URL")}/rest/v1/${path}`;
+}
+
+async function fetchRest(path: string) {
+  const response = await fetch(restUrl(path), { headers: serviceHeaders() });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
 
 function isMotorcycleToken(token: string) {
   return token.startsWith("moto:");
@@ -28,39 +67,39 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const client = getSupabaseServiceClient();
     let motorcycle: any = null;
-    let workOrder: any = null;
+    let workOrder: WorkOrderRow | null = null;
 
     if (isMotorcycleToken(token)) {
       const motorcycleId = token.slice("moto:".length);
-      const [{ data: motorcycleRow, error: motorcycleError }, { data: workOrders, error: workOrdersError }] =
-        await Promise.all([
-          client.from("motorcycles").select("*").eq("id", motorcycleId).maybeSingle(),
-          client
-            .from("work_orders")
-            .select("*, motorcycles(*), work_order_updates(*)")
-            .eq("motorcycle_id", motorcycleId)
-            .neq("status", "delivered")
-            .order("updated_at", { ascending: false })
-        ]);
+      const [motorcycles, workOrders] = await Promise.all([
+        fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`),
+        fetchRest(
+          `work_orders?motorcycle_id=eq.${encodeURIComponent(
+            motorcycleId
+          )}&status=neq.delivered&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&order=updated_at.desc`
+        )
+      ]);
 
-      if (motorcycleError) throw motorcycleError;
-      if (workOrdersError) throw workOrdersError;
-
-      motorcycle = motorcycleRow;
-      workOrder = (workOrders ?? [])[0] ?? null;
+      motorcycle = motorcycles[0] ?? null;
+      workOrder = workOrders[0] ?? null;
     } else {
-      const { data: workOrderRow, error: workOrderError } = await client
-        .from("work_orders")
-        .select("*, motorcycles(*), work_order_updates(*)")
-        .eq("public_tracking_token", token)
-        .maybeSingle();
+      const workOrders = await fetchRest(
+        `work_orders?public_tracking_token=eq.${encodeURIComponent(
+          token
+        )}&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&limit=1`
+      );
+      workOrder = workOrders[0] ?? null;
 
-      if (workOrderError) throw workOrderError;
+      if (workOrder?.status === "delivered") {
+        workOrder = null;
+      }
 
-      motorcycle = workOrderRow?.motorcycles ?? null;
-      workOrder = workOrderRow?.status === "delivered" ? null : workOrderRow;
+      const motorcycleId = workOrder?.motorcycle_id;
+      if (motorcycleId) {
+        const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
+        motorcycle = motorcycles[0] ?? null;
+      }
     }
 
     if (!motorcycle) {
@@ -68,20 +107,35 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const [{ data: profile }, { data: repairs }] = await Promise.all([
-      client.from("profiles").select("shop_name").eq("id", motorcycle.user_id).maybeSingle(),
-      client
-        .from("repairs")
-        .select("*, payment_entries(*)")
-        .eq("motorcycle_id", motorcycle.id)
-        .order("created_at", { ascending: false })
-    ]);
+    const repairRows = await fetchRest(
+      `repairs?motorcycle_id=eq.${encodeURIComponent(motorcycle.id)}&select=*&order=created_at.desc`
+    );
+    const repairIds = (repairRows ?? []).map((item: any) => item.id);
+    const paymentRows = repairIds.length
+      ? await fetchRest(`payment_entries?repair_id=in.(${repairIds.map(encodeURIComponent).join(",")})&select=*`)
+      : [];
+    const profileRows = await fetchRest(
+      `profiles?id=eq.${encodeURIComponent(motorcycle.user_id)}&select=shop_name&limit=1`
+    );
+    const updateRows =
+      workOrder?.id
+        ? await fetchRest(
+            `work_order_updates?work_order_id=eq.${encodeURIComponent(
+              workOrder.id
+            )}&visible_to_customer=is.true&select=id,message,created_at&order=created_at.desc`
+          )
+        : [];
 
-    const normalizedRepairs = (repairs ?? []).map((item: any) => {
-      const paid = Array.isArray(item.payment_entries)
-        ? item.payment_entries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0)
-        : 0;
+    const paymentMap = new Map<string, any[]>();
+    for (const payment of paymentRows ?? []) {
+      const list = paymentMap.get(payment.repair_id) ?? [];
+      list.push(payment);
+      paymentMap.set(payment.repair_id, list);
+    }
 
+    const normalizedRepairs = (repairRows ?? []).map((item: any) => {
+      const payments = paymentMap.get(item.id) ?? [];
+      const paid = payments.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
       return {
         id: item.id,
         description: item.description,
@@ -90,18 +144,8 @@ export default async function handler(req: any, res: any) {
       };
     });
 
-    const customerUpdates = Array.isArray(workOrder?.work_order_updates)
-      ? workOrder.work_order_updates
-          .filter((item: any) => item.visible_to_customer)
-          .map((item: any) => ({
-            id: item.id,
-            message: item.message,
-            createdAt: item.created_at
-          }))
-      : [];
-
     res.status(200).json({
-      shopName: profile?.shop_name ?? "Motor Servis",
+      shopName: profileRows?.[0]?.shop_name ?? "Motor Servis",
       shopPhone: "",
       motorcycle: {
         licensePlate: motorcycle.license_plate,
@@ -116,7 +160,11 @@ export default async function handler(req: any, res: any) {
             customerVisibleNote: workOrder.customer_visible_note || defaultCustomerStatusNote(workOrder.status)
           }
         : null,
-      customerUpdates,
+      customerUpdates: (updateRows ?? []).map((item: any) => ({
+        id: item.id,
+        message: item.message,
+        createdAt: item.created_at
+      })),
       latestRepair: normalizedRepairs[0] ?? null,
       unpaidTotal: normalizedRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0)
     });
