@@ -1017,6 +1017,56 @@ function extractNumberByPatterns(transcript: string, patterns: RegExp[]) {
   return null;
 }
 
+function extractLabeledAmount(transcript: string, labels: string[]) {
+  const alternation = labels.join("|");
+  return extractNumberByPatterns(transcript, [
+    new RegExp(`(?:${alternation})(?:\\s+ucreti|\\s+ucreti|\\s+tutari|\\s+tutari)?(?:\\s*[:=.,;-]\\s*)*(\\d[\\d.,]*)`, "i"),
+    new RegExp(`(?:${alternation})\\D{0,18}?(\\d[\\d.,]*)`, "i"),
+    new RegExp(`(\\d[\\d.,]*)\\s*tl\\s*(?:${alternation})`, "i")
+  ]);
+}
+
+function extractKilometerValue(transcript: string) {
+  return extractNumberByPatterns(transcript, [
+    /(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
+    /(?:kilometre|kilometer|km)\D{0,12}(\d[\d.,]*)/i,
+    /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)\b/i
+  ]);
+}
+
+function cleanStructuredDescription(value: string) {
+  const sanitized = clampText(value, 220)
+    .replace(/\b0{2,}\b/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,!?])/g, "$1")
+    .trim();
+
+  if (!sanitized) {
+    return "";
+  }
+
+  if (!/[a-zA-ZçğıöşüÇĞİÖŞÜ]/.test(sanitized)) {
+    return "";
+  }
+
+  return sanitized;
+}
+
+function buildAssistantSummary(draft: AiRepairDraft) {
+  const summaryParts = [
+    draft.description ? `Islem: ${draft.description}` : null,
+    draft.laborCost !== null ? `Iscilik: ${draft.laborCost} TL` : null,
+    draft.partsCost !== null ? `Parca: ${draft.partsCost} TL` : null,
+    draft.kilometer !== null ? `Kilometre: ${draft.kilometer}` : null,
+    draft.paymentStatus ? `Odeme durumu: ${draft.paymentStatus}` : null,
+    draft.notes ? `Not: ${draft.notes}` : null
+  ].filter(Boolean);
+
+  return summaryParts.length
+    ? `Su sekilde kaydedilecek: ${summaryParts.join(". ")}.`
+    : "AI net ayrisim yapamadi. Metni kontrol et.";
+}
+
 function inferPaymentStatus(transcript: string): PaymentStatus | null {
   const lower = transcript.toLocaleLowerCase("tr-TR");
 
@@ -1037,18 +1087,9 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     .map((segment) => segment.trim())
     .filter(Boolean);
 
-  const laborCost = extractNumberByPatterns(cleaned, [
-    /(?:iscilik|işçilik)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
-    /(\d[\d.,]*)\s*tl\s*(?:iscilik|işçilik)/i
-  ]);
-  const partsCost = extractNumberByPatterns(cleaned, [
-    /(?:yedek\s*parca|yedek\s*parça|parca|parça)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
-    /(\d[\d.,]*)\s*tl\s*(?:yedek\s*parca|yedek\s*parça|parca|parça)/i
-  ]);
-  const kilometer = extractNumberByPatterns(cleaned, [
-    /(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
-    /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)/i
-  ]);
+  const laborCost = extractLabeledAmount(cleaned, ["iscilik", "işçilik"]);
+  const partsCost = extractLabeledAmount(cleaned, ["yedek\\s*parca", "yedek\\s*parça", "parca", "parça"]);
+  const kilometer = extractKilometerValue(cleaned);
   const paymentStatus =
     inferPaymentStatus(cleaned) ??
     (/(yarisi|yarısı|yarim|yarım|kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower) ? "partial" : null);
@@ -1076,7 +1117,7 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
   });
 
   const draft: AiRepairDraft = {
-    description: clampText(descriptionSegments.join(". "), 220),
+    description: cleanStructuredDescription(descriptionSegments.join(". ")),
     laborCost,
     partsCost,
     kilometer,
@@ -1096,18 +1137,7 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
       : "Toplam odemenin yarisi alindi.";
   }
 
-  const summaryParts = [
-    draft.description ? `Islem: ${draft.description}` : null,
-    draft.laborCost !== null ? `Iscilik: ${draft.laborCost} TL` : null,
-    draft.partsCost !== null ? `Parca: ${draft.partsCost} TL` : null,
-    draft.kilometer !== null ? `Kilometre: ${draft.kilometer}` : null,
-    draft.paymentStatus ? `Odeme durumu: ${draft.paymentStatus}` : null,
-    draft.notes ? `Not: ${draft.notes}` : null
-  ].filter(Boolean);
-
-  draft.assistantSummary = summaryParts.length
-    ? `Su sekilde kaydedilecek: ${summaryParts.join(". ")}.`
-    : "AI net ayrisim yapamadi. Metni kontrol et.";
+  draft.assistantSummary = buildAssistantSummary(draft);
 
   return draft;
 }
@@ -1143,6 +1173,7 @@ export async function analyzeRepairTranscript(
   transcript = "Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı."
 ): Promise<AiRepairDraft> {
   const cleanedTranscript = normalizeTranscriptForExtraction(transcript);
+  const localDraft = buildLocalRepairDraft(cleanedTranscript);
 
   if (!cleanedTranscript) {
     return {
@@ -1157,7 +1188,7 @@ export async function analyzeRepairTranscript(
   }
 
   if (typeof window === "undefined") {
-    return buildLocalRepairDraft(cleanedTranscript);
+    return localDraft;
   }
 
   try {
@@ -1189,8 +1220,8 @@ export async function analyzeRepairTranscript(
       assistant_summary?: string;
     };
 
-    return preserveMotorcycleTerms(cleanedTranscript, {
-      description: clampText(parsed.description, 220),
+    const aiDraft = preserveMotorcycleTerms(cleanedTranscript, {
+      description: cleanStructuredDescription(parsed.description ?? ""),
       laborCost: parsed.labor_cost ?? null,
       partsCost: parsed.parts_cost ?? null,
       kilometer: parsed.kilometer ?? null,
@@ -1198,8 +1229,27 @@ export async function analyzeRepairTranscript(
       notes: clampText(parsed.notes, 500),
       assistantSummary: clampText(parsed.assistant_summary, 500)
     });
+
+    const mergedDraft: AiRepairDraft = preserveMotorcycleTerms(cleanedTranscript, {
+      description: localDraft.description || aiDraft.description,
+      laborCost: localDraft.laborCost ?? aiDraft.laborCost ?? null,
+      partsCost: localDraft.partsCost ?? aiDraft.partsCost ?? null,
+      kilometer: localDraft.kilometer ?? aiDraft.kilometer ?? null,
+      paymentStatus: localDraft.paymentStatus ?? aiDraft.paymentStatus ?? null,
+      notes: localDraft.notes || aiDraft.notes,
+      assistantSummary: aiDraft.assistantSummary || ""
+    });
+
+    mergedDraft.description = cleanStructuredDescription(mergedDraft.description);
+    mergedDraft.assistantSummary = mergedDraft.assistantSummary || buildAssistantSummary(mergedDraft);
+
+    if (!mergedDraft.description && localDraft.description) {
+      mergedDraft.description = localDraft.description;
+    }
+
+    return mergedDraft;
   } catch {
-    return buildLocalRepairDraft(cleanedTranscript);
+    return localDraft;
   }
 }
 
