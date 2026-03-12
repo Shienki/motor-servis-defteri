@@ -1044,11 +1044,16 @@ function extractLabeledAmount(transcript: string, labels: string[]) {
 
 function extractKilometerValue(transcript: string) {
   const source = toAsciiExtractionText(transcript);
-  return extractNumberByPatterns(source, [
-    /(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
-    /(?:kilometre|kilometer|km)\D{0,8}(\d[\d.,]*)/i,
-    /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)\b/i
-  ]);
+  const afterLabel = source.match(/(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?([\s:=.,;-]*\d[\d.,\s]*)/i)?.[1] ?? "";
+  const numericMatches = afterLabel.match(/\d[\d.,]*/g) ?? [];
+  for (let index = numericMatches.length - 1; index >= 0; index -= 1) {
+    const parsed = parseTurkishNumber(numericMatches[index]);
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  return extractNumberByPatterns(source, [/(\d[\d.,]*)\s*(?:km|kilometre|kilometer)\b/i]);
 }
 
 function stripStructuredFieldsFromDescription(value: string) {
