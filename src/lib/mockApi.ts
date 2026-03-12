@@ -762,8 +762,8 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
       motorcycle,
       history,
       workOrder,
-      qrToken: workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`,
-      publicTrackingPath: `/takip/${workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`}`
+      qrToken: `moto:${motorcycle.id}`,
+      publicTrackingPath: `/takip/moto:${motorcycle.id}`
     };
   }
 
@@ -785,8 +785,8 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
   return {
     motorcycle,
     workOrder,
-    qrToken: workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`,
-    publicTrackingPath: `/takip/${workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`}`
+    qrToken: `moto:${motorcycle.id}`,
+    publicTrackingPath: `/takip/moto:${motorcycle.id}`
   };
 }
 

@@ -36,7 +36,8 @@ type TrackingCard = Awaited<ReturnType<typeof fetchMotorcycleTrackingCard>>;
 const quickStatusOptions: { value: WorkOrderStatus; label: string }[] = [
   { value: "received", label: "Sırada" },
   { value: "in_progress", label: "Hazırlanıyor" },
-  { value: "ready", label: "Hazır" }
+  { value: "ready", label: "Hazır" },
+  { value: "delivered", label: "Teslim edildi" }
 ];
 
 function getPaidAmount(repair: Repair) {
