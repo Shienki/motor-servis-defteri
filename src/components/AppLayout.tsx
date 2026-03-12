@@ -2,6 +2,7 @@ import { BadgeAlert, ClipboardList, LayoutGrid, LogOut, Settings2, WalletCards }
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { getCurrentUserProfile, signOutUser } from "../lib/mockApi";
+import { PwaInstallPrompt } from "./PwaInstallPrompt";
 import type { Profile } from "../types";
 
 const navItems = [
@@ -27,6 +28,9 @@ export function AppLayout() {
             <h1 className="text-lg font-semibold">{user?.shopName ?? "Servis hesabı"}</h1>
           </Link>
           <div className="flex items-center gap-2">
+            <div className="hidden lg:block">
+              <PwaInstallPrompt />
+            </div>
             <div className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs sm:flex">
               <BadgeAlert size={16} />
               <span>Saha odaklı sürüm</span>
