@@ -67,6 +67,101 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function extractNumberNearKeywords(transcript: string, keywords: string[]) {
+  const lowerTranscript = transcript.toLocaleLowerCase("tr-TR");
+
+  for (const keyword of keywords) {
+    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const afterMatch = new RegExp(`${escapedKeyword}[^\\d]{0,12}(\\d{2,6})`, "i").exec(lowerTranscript);
+
+    if (afterMatch) {
+      return Number(afterMatch[1]);
+    }
+
+    const beforeMatch = new RegExp(`(\\d{2,6})[^\\d]{0,12}${escapedKeyword}`, "i").exec(lowerTranscript);
+
+    if (beforeMatch) {
+      return Number(beforeMatch[1]);
+    }
+  }
+
+  return null;
+}
+
+function extractKilometer(transcript: string) {
+  const lowerTranscript = transcript.toLocaleLowerCase("tr-TR");
+  const directMatch = /(\d{4,7})\s*(km|kilometre|kilometrede|kilometresi)/i.exec(lowerTranscript);
+
+  if (directMatch) {
+    return Number(directMatch[1]);
+  }
+
+  const keywordMatch = /(km|kilometre|kilometrede|kilometresi)[^\d]{0,12}(\d{4,7})/i.exec(lowerTranscript);
+  if (keywordMatch) {
+    return Number(keywordMatch[2]);
+  }
+
+  return null;
+}
+
+function extractPaymentStatus(transcript: string): PaymentStatus | null {
+  const normalized = normalizeText(transcript);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (
+    normalized.includes("odendi") ||
+    normalized.includes("hesap kapandi") ||
+    normalized.includes("tamami alindi") ||
+    normalized.includes("tamamlandi")
+  ) {
+    return "paid";
+  }
+
+  if (
+    normalized.includes("pesin") ||
+    normalized.includes("kapora") ||
+    normalized.includes("bir kismi odendi") ||
+    normalized.includes("kismi odendi") ||
+    normalized.includes("kalan") ||
+    normalized.includes("haftaya odenecek")
+  ) {
+    return "partial";
+  }
+
+  if (
+    normalized.includes("odenmedi") ||
+    normalized.includes("sonra alinacak") ||
+    normalized.includes("veresiye") ||
+    normalized.includes("daha alinmadi")
+  ) {
+    return "unpaid";
+  }
+
+  return null;
+}
+
+function buildHeuristicDraftFromTranscript(transcript: string): AiRepairDraft {
+  const cleanedTranscript = transcript.trim();
+  const laborCost = extractNumberNearKeywords(cleanedTranscript, ["işçilik", "iscilik", "usta", "emek"]);
+  const partsCost = extractNumberNearKeywords(cleanedTranscript, ["parça", "parca", "yedek parça", "yedek parca"]);
+  const kilometer = extractKilometer(cleanedTranscript);
+  const paymentStatus = extractPaymentStatus(cleanedTranscript);
+
+  return {
+    ...emptyDraft,
+    description: cleanedTranscript,
+    laborCost,
+    partsCost,
+    kilometer,
+    paymentStatus,
+    notes: cleanedTranscript,
+    assistantSummary: "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
+  };
+}
+
 function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
   const normalizedTranscript = normalizeText(transcript);
   const normalizedDescription = normalizeText(draft.description);
@@ -109,13 +204,17 @@ function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
 }
 
 function fallbackDraftFromTranscript(transcript: string): AiRepairDraft {
-  const cleanedTranscript = transcript.trim();
+  const heuristicDraft = buildHeuristicDraftFromTranscript(transcript);
 
   return {
-    ...emptyDraft,
-    description: cleanedTranscript,
-    notes: cleanedTranscript,
-    assistantSummary: "AI şu an net ayrıştırma yapamadı. Duyulan metin taslak olarak aktarıldı, alanları kontrol et."
+    ...heuristicDraft,
+    assistantSummary:
+      heuristicDraft.laborCost !== null ||
+      heuristicDraft.partsCost !== null ||
+      heuristicDraft.kilometer !== null ||
+      heuristicDraft.paymentStatus !== null
+        ? "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
+        : "AI şu an net ayrıştırma yapamadı. Duyulan metin taslak olarak aktarıldı, alanları kontrol et."
   };
 }
 
