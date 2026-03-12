@@ -42,6 +42,21 @@ type BrowserRecognition = {
 
 type BrowserRecognitionCtor = new () => BrowserRecognition;
 
+function normalizeRecognizedTranscript(rawValue: string) {
+  return rawValue
+    .replace(/\bbabalar\b/giu, "bagalar")
+    .replace(/\bbakanlar\b/giu, "bagalar")
+    .replace(/\bbakan\b/giu, "baga")
+    .replace(/\bbaba\b/giu, "baga")
+    .replace(/\bbagan\b/giu, "baga")
+    .replace(/\bkese\b/giu, "kece")
+    .replace(/\bvurc\b/giu, "burc")
+    .replace(/\bburca\b/giu, "burc")
+    .replace(/\bfurca\b/giu, "furc")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getRecognitionCtor(): BrowserRecognitionCtor | null {
   const browserWindow = window as Window & {
     SpeechRecognition?: BrowserRecognitionCtor;
@@ -102,7 +117,7 @@ export function AddRepairPage() {
   );
 
   async function runAnalysis(rawTranscript: string) {
-    const transcript = rawTranscript.replace(/\s+/g, " ").trim();
+    const transcript = normalizeRecognizedTranscript(rawTranscript);
     transcriptRef.current = transcript;
     setHeardTranscript(transcript);
 
@@ -164,7 +179,7 @@ export function AddRepairPage() {
         combinedTranscript += `${chunk} `;
       }
 
-      const normalized = combinedTranscript.replace(/\s+/g, " ").trim();
+      const normalized = normalizeRecognizedTranscript(combinedTranscript);
       transcriptRef.current = normalized;
       setHeardTranscript(normalized);
     };
@@ -273,8 +288,9 @@ export function AddRepairPage() {
                 placeholder="Konusma burada metne donecek. Gerekirse duzeltip tekrar AI ile analiz et."
                 value={heardTranscript}
                 onChange={(event) => {
-                  transcriptRef.current = event.target.value;
-                  setHeardTranscript(event.target.value);
+                  const normalized = normalizeRecognizedTranscript(event.target.value);
+                  transcriptRef.current = normalized;
+                  setHeardTranscript(normalized);
                 }}
               />
             </div>

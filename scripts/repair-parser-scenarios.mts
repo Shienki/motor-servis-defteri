@@ -193,5 +193,41 @@ export const repairParserScenarios: RepairParserScenario[] = [
     id: "usta-toplam-yarisi",
     transcript: "Debriyaj merkezi degisti, iscilik 1400, parca 600, odemenin yarisini aldik.",
     expected: { laborCost: 1400, partsCost: 600, paymentStatus: "partial", paidAmount: 1000 }
+  },
+  {
+    id: "usta-bagalar-parts-only",
+    transcript: "Bagalar degisti, yedek parca 950, kilometre 44000.",
+    expected: { description: "bagalar degisti", laborCost: null, partsCost: 950, kilometer: 44000 }
+  },
+  {
+    id: "usta-baba-misheard-parts-only",
+    transcript: "Baba degisti, yedek parca 950, kilometre 44000.",
+    expected: { description: "baga degisti", laborCost: null, partsCost: 950, kilometer: 44000 }
+  },
+  {
+    id: "usta-kapora-and-future-note",
+    transcript: "Debriyaj merkezi degisti, iscilik 1400, parca 600, 1000 kapora alindi, kalan teslimde.",
+    expected: {
+      description: "debriyaj merkezi degisti",
+      laborCost: 1400,
+      partsCost: 600,
+      paymentStatus: "partial",
+      paidAmount: 1000
+    }
+  },
+  {
+    id: "usta-kece-burc-note",
+    transcript: "Kece degisti, burc kontrol edildi, haftaya tekrar bakilacak.",
+    expected: { description: "kece degisti. burc kontrol edildi" }
+  },
+  {
+    id: "usta-paid-without-costs",
+    transcript: "Is tamam, odeme durumu odendi.",
+    expected: { laborCost: 0, partsCost: 0, paymentStatus: "paid" }
+  },
+  {
+    id: "usta-unpaid-future-collection",
+    transcript: "Baga degisti, iscilik 900, parca 300, para haftaya alinacak.",
+    expected: { description: "baga degisti", laborCost: 900, partsCost: 300, paymentStatus: "unpaid" }
   }
 ];

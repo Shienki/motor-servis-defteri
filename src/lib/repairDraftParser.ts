@@ -222,6 +222,7 @@ export function buildLocalRepairDraft(transcript: string): AiRepairDraft {
 
   const explicitPaidAmount = extractNumberByPatterns(cleaned, [
     /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin)\s*(?:alindi|verdiler)/i,
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:kapora)\s*(?:alindi|verdiler|verdi)/i,
     /(\d[\d.,]*)\s*(?:tl)?\s*(?:alindi|verdiler|verdi)/i
   ]);
   if (draft.paymentStatus === "partial" && explicitPaidAmount !== null) {
