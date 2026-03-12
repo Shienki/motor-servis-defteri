@@ -3,34 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
 import { formatCurrency, numbersOnly } from "../lib/format";
-import { analyzeRepairTranscript, createRepairDraft, fetchMotorcycleDetail } from "../lib/mockApi";
+import { createRepairDraft, fetchMotorcycleDetail } from "../lib/mockApi";
+import { analyzeRepairAudio } from "../lib/repairVoiceAi";
 import type { AiRepairDraft, Motorcycle, PaymentStatus } from "../types";
-
-type BrowserSpeechRecognition = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: { error?: string }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionResultLike = {
-  0?: {
-    transcript?: string;
-  };
-};
-
-type SpeechRecognitionEventLike = {
-  results: ArrayLike<SpeechRecognitionResultLike>;
-};
-
-type BrowserWindow = Window & {
-  SpeechRecognition?: new () => BrowserSpeechRecognition;
-  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-};
 
 const emptyDraft: AiRepairDraft = {
   description: "",
@@ -59,208 +34,17 @@ function buildAssistantSummary(draft: AiRepairDraft) {
   return parts.length ? `Şu şekilde kaydedilecek: ${parts.join(". ")}.` : "AI kaydı hazırlıyor.";
 }
 
-function normalizeText(value: string) {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ç/g, "c")
-    .replace(/ğ/g, "g")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ş/g, "s")
-    .replace(/ü/g, "u")
-    .replace(/[^a-z0-9\s]/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function parseTurkishNumber(value: string) {
-  const digitsOnly = value.replace(/[^\d]/g, "");
-  return digitsOnly ? Number(digitsOnly) : null;
-}
-
-function extractNumberNearKeywords(transcript: string, keywords: string[]) {
-  const lowerTranscript = transcript.toLocaleLowerCase("tr-TR");
-
-  for (const keyword of keywords) {
-    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const afterMatch = new RegExp(`${escapedKeyword}[^\\d]{0,16}(\\d[\\d.,]{1,10})`, "i").exec(lowerTranscript);
-
-    if (afterMatch) {
-      return parseTurkishNumber(afterMatch[1]);
-    }
-
-    const beforeMatch = new RegExp(`(\\d[\\d.,]{1,10})[^\\d]{0,16}${escapedKeyword}`, "i").exec(lowerTranscript);
-
-    if (beforeMatch) {
-      return parseTurkishNumber(beforeMatch[1]);
-    }
-  }
-
-  return null;
-}
-
-function extractKilometer(transcript: string) {
-  const lowerTranscript = transcript.toLocaleLowerCase("tr-TR");
-  const directMatch = /(\d[\d.,]{3,10})\s*(km|kilometre|kilometrede|kilometresi)/i.exec(lowerTranscript);
-
-  if (directMatch) {
-    return parseTurkishNumber(directMatch[1]);
-  }
-
-  const keywordMatch = /(km|kilometre|kilometrede|kilometresi)[^\d]{0,12}(\d[\d.,]{3,10})/i.exec(lowerTranscript);
-  if (keywordMatch) {
-    return parseTurkishNumber(keywordMatch[2]);
-  }
-
-  return null;
-}
-
-function extractPaymentStatus(transcript: string): PaymentStatus | null {
-  const normalized = normalizeText(transcript);
-
-  if (!normalized) {
-    return null;
-  }
-
-  if (
-    normalized.includes("odendi") ||
-    normalized.includes("hesap kapandi") ||
-    normalized.includes("tamami alindi") ||
-    normalized.includes("tamamlandi")
-  ) {
-    return "paid";
-  }
-
-  if (
-    normalized.includes("pesin") ||
-    normalized.includes("kapora") ||
-    normalized.includes("bir kismi odendi") ||
-    normalized.includes("kismi odendi") ||
-    normalized.includes("kalan") ||
-    normalized.includes("haftaya odenecek")
-  ) {
-    return "partial";
-  }
-
-  if (
-    normalized.includes("odenmedi") ||
-    normalized.includes("sonra alinacak") ||
-    normalized.includes("veresiye") ||
-    normalized.includes("daha alinmadi")
-  ) {
-    return "unpaid";
-  }
-
-  return null;
-}
-
-function buildDescriptionFromTranscript(transcript: string) {
-  const normalized = normalizeText(transcript);
-  const hasWorkVerb = [
-    "degisti",
-    "degisim",
-    "takildi",
-    "yapildi",
-    "kontrol edildi",
-    "temizlendi",
-    "ayarlandi",
-    "bakimi yapildi",
-    "yenilendi",
-    "tamir edildi"
-  ].some((item) => normalized.includes(item));
-
-  const priceOnlySentence =
-    /^(yedek parca|parca|iscilik|iscilik ucreti|yedek parca ucreti)[^a-z0-9]*\d/i.test(normalized) &&
-    !hasWorkVerb;
-
-  const paymentOnlySentence =
-    /^(odendi|odenmedi|kismi odendi|odeme durumu|pesin|kapora|kalan)/i.test(normalized) && !hasWorkVerb;
-
-  return priceOnlySentence || paymentOnlySentence ? "" : transcript.trim();
-}
-
-function buildHeuristicDraftFromTranscript(transcript: string): AiRepairDraft {
-  const cleanedTranscript = transcript.trim();
-  const laborCost = extractNumberNearKeywords(cleanedTranscript, ["işçilik", "iscilik", "usta", "emek"]);
-  const partsCost = extractNumberNearKeywords(cleanedTranscript, ["parça", "parca", "yedek parça", "yedek parca"]);
-  const kilometer = extractKilometer(cleanedTranscript);
-  const paymentStatus = extractPaymentStatus(cleanedTranscript);
-  const description = buildDescriptionFromTranscript(cleanedTranscript);
-  const normalized = normalizeText(cleanedTranscript);
-  const notes = /haftaya|sonraya|daha sonra|kontrol edilecek|bakilacak|gelecek|tekrar/i.test(normalized)
-    ? cleanedTranscript
-    : "";
-
-  return {
-    ...emptyDraft,
-    description,
-    laborCost,
-    partsCost,
-    kilometer,
-    paymentStatus,
-    notes,
-    assistantSummary:
-      laborCost !== null || partsCost !== null || kilometer !== null || paymentStatus !== null
-        ? "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
-        : "AI şu an net ayrıştırma yapamadı. Duyulan metin taslak olarak aktarıldı, alanları kontrol et."
-  };
-}
-
-function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
-  const normalizedTranscript = normalizeText(transcript);
-  const normalizedDescription = normalizeText(draft.description);
-
-  if (!normalizedTranscript) {
-    return false;
-  }
-
-  if (draft.laborCost === 950 && draft.partsCost === 700 && draft.kilometer === 18720) {
-    return true;
-  }
-
-  if (!normalizedDescription && !draft.partsCost && !draft.laborCost && !draft.kilometer) {
-    return true;
-  }
-
-  const transcriptWords = normalizedTranscript.split(" ").filter((item) => item.length > 3);
-  const overlapCount = transcriptWords.filter((word) => normalizedDescription.includes(word)).length;
-  const hasFinancialGuess =
-    draft.laborCost !== null || draft.partsCost !== null || draft.kilometer !== null || draft.paymentStatus !== null;
-  const transcriptNumbers: string[] = normalizedTranscript.match(/\d+/g) ?? [];
-  const guessedNumbers = [draft.laborCost, draft.partsCost, draft.kilometer]
-    .filter((value): value is number => value !== null)
-    .map((value) => String(value));
-  const numericOverlapCount = guessedNumbers.filter((value) => transcriptNumbers.includes(value)).length;
-
-  if (overlapCount === 0 && normalizedDescription) {
-    return true;
-  }
-
-  if (overlapCount <= 1 && hasFinancialGuess && normalizedDescription) {
-    return true;
-  }
-
-  if (guessedNumbers.length > 0 && numericOverlapCount === 0) {
-    return true;
-  }
-
-  return false;
-}
-
-function fallbackDraftFromTranscript(transcript: string): AiRepairDraft {
-  return buildHeuristicDraftFromTranscript(transcript);
-}
-
 export function AddRepairPage() {
   const navigate = useNavigate();
   const { motorcycleId = "" } = useParams();
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
-  const transcriptRef = useRef("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const [motorcycle, setMotorcycle] = useState<Motorcycle | null>(null);
   const [recording, setRecording] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Mikrofona bas, yapılan işi anlat, sistem özeti hazırlasın.");
+  const [statusMessage, setStatusMessage] = useState("Mikrofona bas, yapılan işi anlat, kayıt bitince sistem çözümlesin.");
   const [heardTranscript, setHeardTranscript] = useState("");
   const [draft, setDraft] = useState<AiRepairDraft>(emptyDraft);
 
@@ -268,8 +52,11 @@ export function AddRepairPage() {
     fetchMotorcycleDetail(motorcycleId).then((data) => setMotorcycle(data.motorcycle));
 
     return () => {
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
+      mediaRecorderRef.current?.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaRecorderRef.current = null;
+      mediaStreamRef.current = null;
+      audioChunksRef.current = [];
     };
   }, [motorcycleId]);
 
@@ -279,90 +66,88 @@ export function AddRepairPage() {
     [draft]
   );
 
-  async function analyzeTranscript(transcript: string) {
+  async function processAudioBlob(audioBlob: Blob) {
     setAnalyzing(true);
-    setStatusMessage("AI notu çözümlüyor ve kaydı hazırlıyor.");
+    setStatusMessage("Whisper ses kaydını çözüyor, ardından AI alanları hazırlıyor.");
 
     try {
-      const result = await analyzeRepairTranscript(transcript);
-      const safeResult = isClearlyDemoDraft(transcript, result) ? fallbackDraftFromTranscript(transcript) : result;
-
+      const result = await analyzeRepairAudio(audioBlob);
+      setHeardTranscript(result.transcript);
       setDraft({
-        ...safeResult,
-        assistantSummary: safeResult.assistantSummary?.trim() || buildAssistantSummary(safeResult)
+        ...result.draft,
+        assistantSummary: result.draft.assistantSummary?.trim() || buildAssistantSummary(result.draft)
       });
       setStatusMessage("AI kaydı hazırladı. Aşağıdaki özet üzerinden onay verebilirsin.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Ses kaydı işlenemedi.";
+      setStatusMessage(message);
     } finally {
       setAnalyzing(false);
     }
   }
 
-  async function handleVoiceFlow() {
-    const browserWindow = window as BrowserWindow;
-    const RecognitionCtor = browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
-
-    if (!RecognitionCtor) {
-      setStatusMessage("Bu tarayıcıda sesli yazıya çevirme desteği yok. Şimdilik alanları elle doldurabilirsin.");
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setStatusMessage("Bu tarayıcı gerçek ses kaydı desteği sunmuyor. Chrome veya Edge ile tekrar dene.");
       return;
     }
 
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      setDraft(emptyDraft);
+      setHeardTranscript("");
+      setRecording(true);
+      setStatusMessage("Kayıt başladı. İş bitince tekrar basarak durdur.");
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" });
+        audioChunksRef.current = [];
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        setRecording(false);
+
+        if (audioBlob.size === 0) {
+          setStatusMessage("Ses kaydı alınamadı. Tekrar deneyebilirsin.");
+          return;
+        }
+
+        void processAudioBlob(audioBlob);
+      };
+
+      mediaRecorder.start();
     } catch {
-      setStatusMessage("Mikrofon izni verilmedi. Tarayıcıdan izin verip tekrar dene.");
+      setStatusMessage("Mikrofon izni verilmedi ya da kayıt başlatılamadı.");
+    }
+  }
+
+  function stopRecording() {
+    if (!mediaRecorderRef.current) {
       return;
     }
 
-    setDraft(emptyDraft);
-    setHeardTranscript("");
-    transcriptRef.current = "";
-    setRecording(true);
-    setStatusMessage("Dinliyorum. İş bitince tekrar basarak kaydı durdurabilirsin.");
-
-    const recognition = new RecognitionCtor();
-    recognition.lang = "tr-TR";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0]?.transcript ?? "")
-        .join(" ")
-        .trim();
-
-      transcriptRef.current = transcript;
-      setHeardTranscript(transcript);
-    };
-
-    recognition.onerror = () => {
-      setRecording(false);
-      setStatusMessage("Ses alındı ama net çözülemedi. Daha kısa ve net konuşup tekrar dene.");
-    };
-
-    recognition.onend = () => {
-      const finalTranscript = transcriptRef.current.trim();
-      setRecording(false);
-      recognitionRef.current = null;
-
-      if (!finalTranscript) {
-        setStatusMessage("Anlaşılır bir ses kaydı alınamadı. Tekrar deneyebilirsin.");
-        return;
-      }
-
-      void analyzeTranscript(finalTranscript);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    setStatusMessage("Kayıt durdu. Ses dosyası Whisper'a gönderiliyor.");
+    mediaRecorderRef.current.stop();
   }
 
   function handleMicButton() {
-    if (recording && recognitionRef.current) {
-      recognitionRef.current.stop();
+    if (recording) {
+      stopRecording();
       return;
     }
 
-    void handleVoiceFlow();
+    void startRecording();
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -393,7 +178,7 @@ export function AddRepairPage() {
           title={`${motorcycle.licensePlate} için yeni işlem`}
           titleClassName="text-white"
           eyebrowClassName="text-amber-200"
-          description="Mikrofona bas, yapılan işi anlat, AI önce ne kaydedileceğini söylesin, sonra onay ver."
+          description="Mikrofona bas, ustanın notunu kaydet. Whisper önce sesi yazıya çevirsin, sonra AI alanları doldursun."
         />
         <div className="mt-6 grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
           <button
@@ -406,10 +191,10 @@ export function AddRepairPage() {
           >
             <Mic size={36} />
             <p className="mt-4 text-xl font-semibold text-white">
-              {recording ? "Kaydı durdur" : analyzing ? "AI hazırlıyor" : "Bas ve kaydı başlat"}
+              {recording ? "Kaydı durdur" : analyzing ? "Ses işleniyor" : "Bas ve kaydı başlat"}
             </p>
             <p className="mt-3 max-w-xs text-sm leading-6 text-white/92">
-              Örnek: Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı.
+              Örnek: Debriyaj içindeki balatalar değişti, işçilik 1200, yedek parça 900, kilometre 22000, 500 peşin alındı.
             </p>
           </button>
 
@@ -419,11 +204,9 @@ export function AddRepairPage() {
               <p className="text-sm font-semibold text-white">AI geri bildirimi</p>
             </div>
             <p className="mt-3 text-sm leading-6 text-white/92">{statusMessage}</p>
-            <div className="mt-4 rounded-2xl bg-amber/20 px-4 py-3 text-sm text-white">
-              {assistantSummary}
-            </div>
+            <div className="mt-4 rounded-2xl bg-amber/20 px-4 py-3 text-sm text-white">{assistantSummary}</div>
             <div className="mt-4 rounded-2xl bg-ink/30 px-4 py-4 text-sm text-white/90">
-              <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Duyulan metin</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Whisper metni</p>
               <p className="mt-2 min-h-10">{heardTranscript || "Henüz ses kaydı alınmadı."}</p>
             </div>
           </div>
