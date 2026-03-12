@@ -1030,6 +1030,7 @@ function inferPaymentStatus(transcript: string): PaymentStatus | null {
 
 function buildLocalRepairDraft(transcript: string): AiRepairDraft {
   const cleaned = normalizeTranscriptForExtraction(transcript);
+  const lower = cleaned.toLocaleLowerCase("tr-TR");
   const segments = cleaned
     .split(/[.!?;,]+/)
     .map((segment) => segment.trim())
@@ -1047,7 +1048,12 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     /(?:kilometre|kilometer|km)(?:de|deki)?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
     /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)/i
   ]);
-  const paymentStatus = inferPaymentStatus(cleaned);
+  const paymentStatus =
+    inferPaymentStatus(cleaned) ??
+    (/(yarisi|yarısı|yarim|yarım|kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower) ? "partial" : null);
+  const hasPaymentPhrase = /(odeme|ödeme|odendi|ödendi|odenmedi|ödenmedi|pesin|peşin|kalan|yarisi|yarısı|yarim|yarım)/i.test(
+    lower
+  );
 
   const noteSegments = segments.filter((segment) =>
     /(haftaya|sonra|tekrar|gelecek|kontrol edilecek|bakilacak|bakılacak|degisecek|değişecek|aranacak|haber verilecek)/i.test(
@@ -1077,6 +1083,17 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     notes: clampText(noteSegments.join(". "), 500),
     assistantSummary: ""
   };
+
+  if (hasPaymentPhrase && draft.laborCost === null && draft.partsCost === null) {
+    draft.laborCost = 0;
+    draft.partsCost = 0;
+  }
+
+  if (paymentStatus === "partial" && /(yarisi|yarısı|yarim|yarım)/i.test(lower)) {
+    draft.notes = draft.notes
+      ? clampText(`${draft.notes}. Toplam odemenin yarisi alindi.`, 500)
+      : "Toplam odemenin yarisi alindi.";
+  }
 
   const summaryParts = [
     draft.description ? `Islem: ${draft.description}` : null,

@@ -96,6 +96,8 @@ Kurallar:
 - Ornek: "iscilik ucreti. 1500. yedek parca 700" ise labor_cost=1500, parts_cost=700.
 - Ornek: "km. 22000" ise kilometer=22000.
 - Ornek: "500 pesin alindi, kalan haftaya" ise payment_status=partial.
+- Ornek: "odemenin yarisi alindi" ise payment_status=partial ve notes icinde bu bilgi yer almali.
+- Ornek: sadece "odeme alindi" veya "odeme durumu odendi" denmis ama iscilik/parca detayi verilmemisse labor_cost=0, parts_cost=0 olabilir.
 - Ornek: "baba degisti, iscilik 1500, parca 700" ise "baba" kelimesini baglama gore "baga" olarak duzelt.
 - Ornek: "bakanlar degisti, iscilik ucreti. 1500" ise "bakanlar" kelimesini teknik baglama gore "bagalar" ya da en yakin dogru terime duzelt.
 - Tutar uydurma. Metinde yoksa null birak.
@@ -106,6 +108,7 @@ Kurallar:
 - "odenmedi", "sonra alinacak", "veresiye" gibi ifadeler unpaid olmali.
 - Description alanina yalnizca bu islemde yapilan isler yazilsin.
 - Notes alanina ozellikle ileriye donuk veya ek not niteligindeki bilgiler yazilsin.
+- "odemenin yarisi alindi", "pesin alindi", "kalan sonra", "yarim odendi" gibi tahsilat bilgileri notes alanina da yansisin.
 - Eger metinde hem yapilan is hem yapilacak is geciyorsa:
   - yapilan is description
   - yapilacak is notes
