@@ -34,11 +34,16 @@ export function CameraScannerPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const solvedRef = useRef(false);
   const ocrBusyRef = useRef(false);
-  const [status, setStatus] = useState("Kamerayı açıyorum. QR için kameraya göster, plaka için telefonu 1-2 saniye sabit tut.");
+  const target = searchParams.get("hedef") ?? "arama";
+  const isNewRecordFlow = target === "yeni-kayit";
+  const [status, setStatus] = useState(
+    isNewRecordFlow
+      ? "Kamerayı açıyorum. Plaka için telefonu 1-2 saniye sabit tut."
+      : "Kamerayı açıyorum. QR için kameraya göster, plaka için telefonu 1-2 saniye sabit tut."
+  );
   const [cameraReady, setCameraReady] = useState(false);
   const [lastDetected, setLastDetected] = useState("");
   const [supportNote, setSupportNote] = useState("");
-  const target = searchParams.get("hedef") ?? "arama";
 
   useEffect(() => {
     let mounted = true;
@@ -63,7 +68,7 @@ export function CameraScannerPage() {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
           setCameraReady(true);
-          setStatus("QR veya plaka bekleniyor.");
+          setStatus(isNewRecordFlow ? "Plaka bekleniyor." : "QR veya plaka bekleniyor.");
         }
       } catch {
         setStatus("Kamera açılamadı. Tarayıcı iznini kontrol et.");
@@ -77,10 +82,10 @@ export function CameraScannerPage() {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [isNewRecordFlow]);
 
   useEffect(() => {
-    if (!cameraReady || !videoRef.current) {
+    if (isNewRecordFlow || !cameraReady || !videoRef.current) {
       return;
     }
 
@@ -116,7 +121,7 @@ export function CameraScannerPage() {
     }, 350);
 
     return () => window.clearInterval(interval);
-  }, [cameraReady, navigate]);
+  }, [cameraReady, isNewRecordFlow, navigate]);
 
   useEffect(() => {
     if (!cameraReady || !videoRef.current || !canvasRef.current) {
@@ -171,11 +176,6 @@ export function CameraScannerPage() {
           return;
         }
 
-        if (target === "yeni-kayit") {
-          navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(plate)}&yontem=kamera`, { replace: true });
-          return;
-        }
-
         navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(plate)}&yontem=kamera`, { replace: true });
       } catch {
         setSupportNote("Plaka OCR denemesi sürüyor. Kamerayı plakaya daha yakın ve sabit tut.");
@@ -185,15 +185,19 @@ export function CameraScannerPage() {
     }, 1600);
 
     return () => window.clearInterval(interval);
-  }, [cameraReady, navigate, target]);
+  }, [cameraReady, navigate]);
 
   return (
     <div className="space-y-5 px-4 py-5">
       <Panel className="bg-ink text-white">
         <SectionTitle
           eyebrow="Canlı kamera"
-          title="QR veya plakayı okut"
-          description="Foto çekme yok. Kamera canlı akıştan önce QR kodu, bulamazsa plaka yazısını okumaya çalışır."
+          title={isNewRecordFlow ? "Plakayı okut" : "QR veya plakayı okut"}
+          description={
+            isNewRecordFlow
+              ? "Foto çekme yok. Kamera canlı akıştan plaka yazısını okumaya çalışır."
+              : "Foto çekme yok. Kamera canlı akıştan önce QR kodu, bulamazsa plaka yazısını okumaya çalışır."
+          }
         />
 
         <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-black">
@@ -201,20 +205,24 @@ export function CameraScannerPage() {
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
-            <div className="flex items-center gap-2 text-white">
-              <QrCode size={16} />
-              <span className="font-medium">QR öncelikli</span>
+        <div className={`mt-4 grid gap-3 ${isNewRecordFlow ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+          {!isNewRecordFlow ? (
+            <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
+              <div className="flex items-center gap-2 text-white">
+                <QrCode size={16} />
+                <span className="font-medium">QR öncelikli</span>
+              </div>
+              <p className="mt-2 text-white/75">QR görünürse anında yönlendirir.</p>
             </div>
-            <p className="mt-2 text-white/75">QR görünürse anında yönlendirir.</p>
-          </div>
+          ) : null}
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
               <ScanLine size={16} />
               <span className="font-medium">Plaka OCR</span>
             </div>
-            <p className="mt-2 text-white/75">QR yoksa canlı görüntüden plakayı okur.</p>
+            <p className="mt-2 text-white/75">
+              {isNewRecordFlow ? "Canlı görüntüden plakayı okur." : "QR yoksa canlı görüntüden plakayı okur."}
+            </p>
           </div>
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
