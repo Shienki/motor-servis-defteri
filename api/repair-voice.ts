@@ -3,9 +3,7 @@ import { requireAuthenticatedUser } from "./_supabase";
 
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: "8mb"
-    }
+    bodyParser: false
   }
 };
 
@@ -52,33 +50,48 @@ function buildMultipartBody(audioBytes: Buffer, mimeType: string) {
   };
 }
 
+async function readRawBody(req: any) {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
-  const authenticatedUser = await requireAuthenticatedUser(req);
-  if (!authenticatedUser.user) {
-    res.status(401).json({ error: "Oturum gerekli." });
-    return;
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    res.status(503).json({ error: "OPENAI_API_KEY tanımlı değil." });
-    return;
-  }
-
-  const audioBase64 = typeof req.body?.audio === "string" ? req.body.audio : "";
-  const mimeType = typeof req.body?.mimeType === "string" ? req.body.mimeType : "audio/webm";
-
-  if (!audioBase64) {
-    res.status(400).json({ error: "Ses verisi zorunlu." });
-    return;
-  }
-
   try {
-    const audioBytes = Buffer.from(audioBase64, "base64");
+    const authenticatedUser = await requireAuthenticatedUser(req);
+    if (!authenticatedUser.user) {
+      res.status(401).json({ error: "Oturum gerekli." });
+      return;
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      res.status(503).json({ error: "OPENAI_API_KEY tanımlı değil." });
+      return;
+    }
+
+    const mimeTypeHeader = req.headers["x-audio-mime-type"];
+    const mimeType = Array.isArray(mimeTypeHeader)
+      ? mimeTypeHeader[0]
+      : typeof mimeTypeHeader === "string"
+        ? mimeTypeHeader
+        : "audio/webm";
+
+    const audioBytes = await readRawBody(req);
+
+    if (!audioBytes.length) {
+      res.status(400).json({ error: "Ses verisi zorunlu." });
+      return;
+    }
+
     const { boundary, body } = buildMultipartBody(audioBytes, mimeType || "audio/webm");
 
     const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {

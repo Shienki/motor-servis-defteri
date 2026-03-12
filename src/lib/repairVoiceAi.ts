@@ -6,36 +6,20 @@ export type VoiceRepairAnalysis = {
   draft: AiRepairDraft;
 };
 
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary);
-}
-
 export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAnalysis> {
   const authToken = await getAccessToken();
-  const audioBuffer = await audioBlob.arrayBuffer();
-  const audioBase64 = arrayBufferToBase64(audioBuffer);
 
   const response = await fetch("/api/repair-voice", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "x-audio-mime-type": audioBlob.type || "audio/webm",
       ...(authToken
         ? {
             Authorization: `Bearer ${authToken}`
           }
         : {})
     },
-    body: JSON.stringify({
-      audio: audioBase64,
-      mimeType: audioBlob.type || "audio/webm"
-    })
+    body: audioBlob
   });
 
   if (!response.ok) {
