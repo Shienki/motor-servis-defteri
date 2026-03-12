@@ -40,6 +40,13 @@ const quickStatusOptions: { value: WorkOrderStatus; label: string }[] = [
   { value: "delivered", label: "Teslim edildi" }
 ];
 
+function defaultCustomerStatusNote(status: WorkOrderStatus) {
+  if (status === "received") return "Motosiklet sıraya alındı.";
+  if (status === "in_progress") return "Servis işlemi hazırlanıyor.";
+  if (status === "ready") return "Motosiklet hazır, teslim için bilgi alabilirsiniz.";
+  return "";
+}
+
 function getPaidAmount(repair: Repair) {
   return repair.paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
 }
@@ -235,7 +242,7 @@ export function MotorcyclePage() {
 
     await updateWorkOrderStatus(existingWorkOrder.id, {
       status: trackingStatus,
-      customerVisibleNote: trackingNote,
+      customerVisibleNote: trackingNote || defaultCustomerStatusNote(trackingStatus),
       internalNote: existingWorkOrder.internalNote ?? "",
       estimatedDeliveryDate: existingWorkOrder.estimatedDeliveryDate ?? null
     });

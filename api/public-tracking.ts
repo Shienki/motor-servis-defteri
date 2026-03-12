@@ -4,6 +4,13 @@ function isMotorcycleToken(token: string) {
   return token.startsWith("moto:");
 }
 
+function defaultCustomerStatusNote(status: string | null) {
+  if (status === "received") return "Motosiklet sıraya alındı.";
+  if (status === "in_progress") return "Servis işlemi hazırlanıyor.";
+  if (status === "ready") return "Motosiklet hazır, teslim için bilgi alabilirsiniz.";
+  return "Şu an devam eden servis süreci yok.";
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
@@ -55,8 +62,8 @@ export default async function handler(req: any, res: any) {
         throw workOrderError;
       }
 
-      workOrder = workOrderRow;
       motorcycle = workOrderRow?.motorcycles ?? null;
+      workOrder = workOrderRow?.status === "delivered" ? null : workOrderRow;
     }
 
     if (!motorcycle) {
@@ -109,7 +116,7 @@ export default async function handler(req: any, res: any) {
             status: workOrder.status,
             estimatedDeliveryDate: workOrder.estimated_delivery_date,
             updatedAt: workOrder.updated_at,
-            customerVisibleNote: workOrder.customer_visible_note
+            customerVisibleNote: workOrder.customer_visible_note || defaultCustomerStatusNote(workOrder.status)
           }
         : null,
       customerUpdates,
