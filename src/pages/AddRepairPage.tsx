@@ -31,7 +31,16 @@ function buildAssistantSummary(draft: AiRepairDraft) {
     draft.notes ? `Not: ${draft.notes}` : null
   ].filter(Boolean);
 
-  return parts.length ? `Şu şekilde kaydedilecek: ${parts.join(". ")}.` : "AI kaydı hazırlıyor.";
+  return parts.length ? `Şu şekilde kaydedilecek: ${parts.join(". ")}.` : "AI kaydı hazırlanıyor.";
+}
+
+function getSupportedMimeType() {
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  return candidates.find((value) => MediaRecorder.isTypeSupported(value)) ?? "";
 }
 
 export function AddRepairPage() {
@@ -52,7 +61,11 @@ export function AddRepairPage() {
     fetchMotorcycleDetail(motorcycleId).then((data) => setMotorcycle(data.motorcycle));
 
     return () => {
-      mediaRecorderRef.current?.stop();
+      try {
+        mediaRecorderRef.current?.stop();
+      } catch {
+        // noop
+      }
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaRecorderRef.current = null;
       mediaStreamRef.current = null;
@@ -94,24 +107,25 @@ export function AddRepairPage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const mimeType = getSupportedMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
       mediaStreamRef.current = stream;
-      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
       setDraft(emptyDraft);
       setHeardTranscript("");
       setRecording(true);
       setStatusMessage("Kayıt başladı. İş bitince tekrar basarak durdur.");
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" });
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
         audioChunksRef.current = [];
         mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
@@ -119,14 +133,14 @@ export function AddRepairPage() {
         setRecording(false);
 
         if (audioBlob.size === 0) {
-          setStatusMessage("Ses kaydı alınamadı. Tekrar deneyebilirsin.");
+          setStatusMessage("Ses kaydı alınamadı. Daha uzun konuşup tekrar dene.");
           return;
         }
 
         void processAudioBlob(audioBlob);
       };
 
-      mediaRecorder.start();
+      recorder.start(250);
     } catch {
       setStatusMessage("Mikrofon izni verilmedi ya da kayıt başlatılamadı.");
     }
@@ -138,6 +152,11 @@ export function AddRepairPage() {
     }
 
     setStatusMessage("Kayıt durdu. Ses dosyası Whisper'a gönderiliyor.");
+    try {
+      mediaRecorderRef.current.requestData();
+    } catch {
+      // Some browsers may not support requestData reliably.
+    }
     mediaRecorderRef.current.stop();
   }
 
