@@ -169,7 +169,7 @@ export function buildAssistantSummary(draft: AiRepairDraft) {
 function inferPaymentStatus(transcript: string): PaymentStatus | null {
   const lower = normalizeTranscriptForExtraction(transcript);
 
-  if (/(kismi|pesin|kapora|kalan)/i.test(lower)) return "partial";
+  if (/(yarisi|yarim|kismi|pesin|kapora|kalan)/i.test(lower)) return "partial";
   if (/(odendi|odedi|hesap kapandi|tamamlandi)/i.test(lower)) return "paid";
   if (/(odenmedi|veresiye|sonra alinacak|haftaya alinacak|para sonra)/i.test(lower)) return "unpaid";
 

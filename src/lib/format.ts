@@ -76,12 +76,7 @@ export function normalizeWorkOrderStatus(status: string | null | undefined): Wor
   if (status === "ready") return "ready";
   if (status === "delivered") return "delivered";
   if (status === "in_progress") return "in_progress";
-  if (
-    status === "inspection" ||
-    status === "waiting_parts" ||
-    status === "waiting_approval" ||
-    status === "testing"
-  ) {
+  if (status === "inspection" || status === "waiting_parts" || status === "waiting_approval" || status === "testing") {
     return "in_progress";
   }
   return "received";
@@ -95,8 +90,8 @@ export function workOrderStatusLabel(status: WorkOrderStatus) {
 }
 
 export function workOrderStatusTone(status: WorkOrderStatus) {
-  if (status === "ready") return "bg-success/15 text-success ring-1 ring-success/20";
-  if (status === "delivered") return "bg-slate/10 text-steel ring-1 ring-slate/10";
-  if (status === "in_progress") return "bg-warning/15 text-warning ring-1 ring-warning/20";
-  return "bg-ink/10 text-ink ring-1 ring-slate/10";
+  if (status === "ready") return "bg-success/15 text-success ring-1 ring-success/25";
+  if (status === "delivered") return "bg-steel/15 text-ink ring-1 ring-steel/30";
+  if (status === "in_progress") return "bg-warning/20 text-warning ring-1 ring-warning/30";
+  return "bg-info/15 text-info ring-1 ring-info/30";
 }

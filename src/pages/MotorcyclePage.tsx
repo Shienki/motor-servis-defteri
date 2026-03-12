@@ -186,32 +186,33 @@ export function MotorcyclePage() {
           <meta charset="utf-8" />
           <title>QR Etiketi</title>
           <style>
-            @page { size: 10cm 10cm; margin: 0; }
+            @page { margin: 10mm; }
             html, body {
-              width: 10cm;
-              height: 10cm;
               margin: 0;
               padding: 0;
-              overflow: hidden;
               background: #fff;
               font-family: Arial, sans-serif;
             }
             .label {
               box-sizing: border-box;
-              width: 10cm;
-              height: 10cm;
+              width: 80mm;
+              min-height: 92mm;
+              margin: 0 auto;
+              border: 1px solid #cbd5e1;
+              border-radius: 12px;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              gap: 8px;
-              padding: 8mm;
+              gap: 10px;
+              padding: 8mm 6mm;
             }
             .plate {
-              font-size: 24px;
+              font-size: 22px;
               font-weight: 700;
               letter-spacing: 0.18em;
               color: #0f172a;
+              text-align: center;
             }
             .model {
               font-size: 14px;
@@ -219,8 +220,8 @@ export function MotorcyclePage() {
               text-align: center;
             }
             img {
-              width: 6.4cm;
-              height: 6.4cm;
+              width: 54mm;
+              height: 54mm;
               object-fit: contain;
             }
           </style>
