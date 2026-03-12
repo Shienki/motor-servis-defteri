@@ -1017,25 +1017,65 @@ function extractNumberByPatterns(transcript: string, patterns: RegExp[]) {
   return null;
 }
 
+function toAsciiExtractionText(transcript: string) {
+  return transcript
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/iş/g, "is")
+    .replace(/ş/g, "s")
+    .replace(/ç/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u");
+}
+
 function extractLabeledAmount(transcript: string, labels: string[]) {
+  const source = toAsciiExtractionText(transcript);
   const alternation = labels.join("|");
-  return extractNumberByPatterns(transcript, [
+  return extractNumberByPatterns(source, [
     new RegExp(`(?:${alternation})(?:\\s+ucreti|\\s+ucreti|\\s+tutari|\\s+tutari)?(?:\\s*[:=.,;-]\\s*)*(\\d[\\d.,]*)`, "i"),
-    new RegExp(`(?:${alternation})\\D{0,18}?(\\d[\\d.,]*)`, "i"),
+    new RegExp(`(?:${alternation})\\D{0,12}?(\\d[\\d.,]*)`, "i"),
     new RegExp(`(\\d[\\d.,]*)\\s*tl\\s*(?:${alternation})`, "i")
   ]);
 }
 
 function extractKilometerValue(transcript: string) {
-  return extractNumberByPatterns(transcript, [
+  const source = toAsciiExtractionText(transcript);
+  return extractNumberByPatterns(source, [
     /(?:kilometre|kilometer|km)(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*(\d[\d.,]*)/i,
-    /(?:kilometre|kilometer|km)\D{0,12}(\d[\d.,]*)/i,
+    /(?:kilometre|kilometer|km)\D{0,8}(\d[\d.,]*)/i,
     /(\d[\d.,]*)\s*(?:km|kilometre|kilometer)\b/i
   ]);
 }
 
+function stripStructuredFieldsFromDescription(value: string) {
+  return value
+    .replace(
+      /\b(?:iscilik|işçilik|iscilik)\b(?:\s+(?:ucreti|ücreti|tutari|tutarı))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
+      " "
+    )
+    .replace(
+      /\b(?:yedek\s*parca|yedek\s*parça|parca|parça)\b(?:\s+(?:ucreti|ücreti|tutari|tutarı))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
+      " "
+    )
+    .replace(/\b(?:kilometre|kilometer|km)\b(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*/giu, " ")
+    .replace(/\d[\d.,]*\s*(?:km|kilometre|kilometer)\b/giu, " ")
+    .replace(/\b(?:odeme|ödeme)\s+durumu\b\s*(?:paid|unpaid|partial|ödendi|odendi|ödenmedi|odenmedi|kısmi|kismi)?/giu, " ")
+    .replace(/\b(?:paid|unpaid|partial)\b/giu, " ")
+    .replace(/\b\d[\d.,]*\b/gu, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function cleanStructuredDescription(value: string) {
   const sanitized = clampText(value, 220)
+    .replace(/bagalar degisti/gi, "Bagalar değişti")
+    .replace(/baga degisti/gi, "Baga değişti")
+    .replace(/debriyaj balatasi/gi, "Debriyaj balatası")
+    .replace(/degisti/gi, "değişti")
+    .replace(/kontrol edildi/gi, "kontrol edildi")
+    .replace(/yapildi/gi, "yapıldı")
+    .replace(/takildi/gi, "takıldı")
     .replace(/\b0{2,}\b/g, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,!?])/g, "$1")
@@ -1102,19 +1142,15 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
       segment
     )
   );
-  const descriptionSegments = segments.filter((segment) => {
-    if (
-      /(iscilik|işçilik|parca|parça|kilometre|kilometer|\bkm\b|odendi|ödendi|odenmedi|ödenmedi|kismi|kısmi|pesin|peşin|kalan)/i.test(
-        segment
-      )
-    ) {
-      return /(degisti|değişti|yapildi|yapıldı|takildi|takıldı|kontrol edildi|temizlendi|ayarlandi|ayarlandı)/i.test(
-        segment
-      );
-    }
-
-    return true;
-  });
+  const descriptionSegments = segments
+    .map((segment) => stripStructuredFieldsFromDescription(segment))
+    .filter(
+      (segment) =>
+        Boolean(segment) &&
+        /(degisti|değişti|yapildi|yapıldı|takildi|takıldı|kontrol edildi|temizlendi|ayarlandi|ayarlandı|degisen|değişen)/i.test(
+          segment
+        )
+    );
 
   const draft: AiRepairDraft = {
     description: cleanStructuredDescription(descriptionSegments.join(". ")),
@@ -1231,7 +1267,7 @@ export async function analyzeRepairTranscript(
     });
 
     const mergedDraft: AiRepairDraft = preserveMotorcycleTerms(cleanedTranscript, {
-      description: localDraft.description || aiDraft.description,
+      description: localDraft.description || stripStructuredFieldsFromDescription(aiDraft.description),
       laborCost: localDraft.laborCost ?? aiDraft.laborCost ?? null,
       partsCost: localDraft.partsCost ?? aiDraft.partsCost ?? null,
       kilometer: localDraft.kilometer ?? aiDraft.kilometer ?? null,
