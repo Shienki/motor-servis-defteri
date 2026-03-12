@@ -69,6 +69,20 @@ Sesli işlem ekranı şu an iki modla çalışır:
 
 Anahtar istemci tarafına yazılmaz. Sadece sunucu ortam değişkeni olarak tutulur.
 
+## Whisper notu
+
+Gerçek ses kaydı akışı artık `Supabase Edge Function` için hazırdır:
+
+- fonksiyon yolu: `supabase/functions/repair-voice/index.ts`
+- frontend önce `https://<supabase-url>/functions/v1/repair-voice` adresini dener
+- fonksiyon deploy edilmemişse eski Vercel route fallback olarak kalır
+
+Bu fonksiyonun çalışması için `Supabase` tarafında şu secret'lar tanımlı olmalıdır:
+
+- `OPENAI_API_KEY`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
 ## Yayın notu
 
 Vercel için temel yapı hazır:

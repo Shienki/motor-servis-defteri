@@ -1,3 +1,4 @@
+import { env, integrationStatus } from "./env";
 import { getAccessToken } from "./supabase";
 import type { AiRepairDraft } from "../types";
 
@@ -8,18 +9,33 @@ export type VoiceRepairAnalysis = {
 
 export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAnalysis> {
   const authToken = await getAccessToken();
+  const formData = new FormData();
+  formData.append("file", audioBlob, `repair-note.${audioBlob.type.includes("mp4") ? "m4a" : "webm"}`);
 
-  const response = await fetch("/api/repair-voice", {
+  const targetUrl = integrationStatus.supabaseReady
+    ? `${env.supabaseUrl}/functions/v1/repair-voice`
+    : "/api/repair-voice";
+
+  const response = await fetch(targetUrl, {
     method: "POST",
-    headers: {
-      "x-audio-mime-type": audioBlob.type || "audio/webm",
-      ...(authToken
+    headers: integrationStatus.supabaseReady
+      ? {
+          ...(authToken
+            ? {
+                Authorization: `Bearer ${authToken}`
+              }
+            : {}),
+          apikey: env.supabaseAnonKey
+        }
+      : authToken
         ? {
-            Authorization: `Bearer ${authToken}`
+            Authorization: `Bearer ${authToken}`,
+            "x-audio-mime-type": audioBlob.type || "audio/webm"
           }
-        : {})
-    },
-    body: audioBlob
+        : {
+            "x-audio-mime-type": audioBlob.type || "audio/webm"
+          },
+    body: integrationStatus.supabaseReady ? formData : audioBlob
   });
 
   if (!response.ok) {
