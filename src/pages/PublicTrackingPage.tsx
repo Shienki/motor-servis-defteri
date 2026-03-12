@@ -61,14 +61,14 @@ export function PublicTrackingPage() {
                   {workOrderStatusLabel(data.workOrder.status)}
                 </span>
               ) : (
-                <span className="mt-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs text-white">
+                <span className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-ink">
                   Şu an aktif iş yok
                 </span>
               )}
             </div>
             <div className="rounded-2xl bg-white/10 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.2em] text-mist">Tahmini teslim</p>
-              <p className="mt-2 font-semibold">
+              <p className="mt-2 font-semibold text-white">
                 {data.workOrder?.estimatedDeliveryDate ? formatShortDate(data.workOrder.estimatedDeliveryDate) : "Şu an planlanmadı"}
               </p>
             </div>
@@ -101,11 +101,7 @@ export function PublicTrackingPage() {
         </Panel>
 
         <Panel>
-          <SectionTitle
-            eyebrow="Durum geçmişi"
-            title="Servis zaman çizelgesi"
-            description="Müşteriye açık güncellemeler burada tarih sırasıyla görünür."
-          />
+          <SectionTitle eyebrow="Durum geçmişi" title="Servis zaman çizelgesi" description="Müşteriye açık güncellemeler burada tarih sırasıyla görünür." />
           <div className="mt-5 space-y-3">
             {data.customerUpdates.map((item: { id: string; createdAt: string; message: string }) => (
               <div key={item.id} className="rounded-2xl border border-slate/10 bg-sand px-4 py-4 text-sm text-steel">
