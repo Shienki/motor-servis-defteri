@@ -1,11 +1,13 @@
 import type { PaymentStatus, WorkOrderStatus } from "../types";
 
 export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("tr-TR", {
+  const formatted = new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency: "TRY",
     maximumFractionDigits: 0
   }).format(value);
+
+  return formatted.replace("TL", "₺").replace("TRY", "₺").replace("$", "₺");
 }
 
 export function formatDate(value: string) {
