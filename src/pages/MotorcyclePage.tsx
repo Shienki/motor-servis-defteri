@@ -1,6 +1,7 @@
 import { MessageSquareMore, Phone, Plus, QrCode, StickyNote, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import QRCode from "qrcode";
 import { QrPreview } from "../components/QrPreview";
 import { Button, Input, Label, Panel, SectionTitle } from "../components/Ui";
 import { fetchMotorcycleDetail, fetchMotorcycleTrackingCard, updateRepairDebt } from "../lib/mockApi";
@@ -127,6 +128,86 @@ export function MotorcyclePage() {
     );
   }
 
+  async function printQrLabel() {
+    if (!trackingCard || !motorcycle) return;
+
+    const qrUrl = `${origin}/qr/${trackingCard.qrToken}`;
+    const qrImage = await QRCode.toDataURL(qrUrl, {
+      width: 720,
+      margin: 1,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff"
+      }
+    });
+
+    const printWindow = window.open("", "_blank", "width=420,height=420");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="tr">
+        <head>
+          <meta charset="utf-8" />
+          <title>QR Etiketi</title>
+          <style>
+            @page { size: 10cm 10cm; margin: 0; }
+            html, body {
+              width: 10cm;
+              height: 10cm;
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              background: #fff;
+              font-family: Arial, sans-serif;
+            }
+            .label {
+              box-sizing: border-box;
+              width: 10cm;
+              height: 10cm;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+              padding: 8mm;
+            }
+            .plate {
+              font-size: 24px;
+              font-weight: 700;
+              letter-spacing: 0.18em;
+              color: #0f172a;
+            }
+            .model {
+              font-size: 14px;
+              color: #334155;
+              text-align: center;
+            }
+            img {
+              width: 6.4cm;
+              height: 6.4cm;
+              object-fit: contain;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label">
+            <div class="plate">${motorcycle.licensePlate}</div>
+            <img src="${qrImage}" alt="QR kodu" />
+            <div class="model">${motorcycle.model}</div>
+          </div>
+          <script>
+            window.onload = function () {
+              window.print();
+              setTimeout(function () { window.close(); }, 150);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
   if (!motorcycle) {
     return (
       <div className="px-4 py-5">
@@ -229,7 +310,7 @@ export function MotorcyclePage() {
                       )}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Button className="w-full gap-2" variant="secondary" type="button" onClick={() => window.print()}>
+                      <Button className="w-full gap-2" variant="secondary" type="button" onClick={() => void printQrLabel()}>
                         <QrCode size={18} />
                         QR Yazdır
                       </Button>
