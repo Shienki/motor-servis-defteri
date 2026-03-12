@@ -1,5 +1,9 @@
 import { getSupabaseServiceClient } from "./_supabase";
 
+function isMotorcycleToken(token: string) {
+  return token.startsWith("moto:");
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
@@ -14,23 +18,51 @@ export default async function handler(req: any, res: any) {
 
   try {
     const client = getSupabaseServiceClient();
+    let motorcycle: any = null;
+    let workOrder: any = null;
 
-    const { data: workOrder, error: workOrderError } = await client
-      .from("work_orders")
-      .select("*, motorcycles(*), work_order_updates(*)")
-      .eq("public_tracking_token", token)
-      .maybeSingle();
+    if (isMotorcycleToken(token)) {
+      const motorcycleId = token.slice("moto:".length);
+      const [{ data: motorcycleRow, error: motorcycleError }, { data: workOrders, error: workOrdersError }] =
+        await Promise.all([
+          client.from("motorcycles").select("*").eq("id", motorcycleId).maybeSingle(),
+          client
+            .from("work_orders")
+            .select("*, motorcycles(*), work_order_updates(*)")
+            .eq("motorcycle_id", motorcycleId)
+            .neq("status", "delivered")
+            .order("updated_at", { ascending: false })
+        ]);
 
-    if (workOrderError) {
-      throw workOrderError;
+      if (motorcycleError) {
+        throw motorcycleError;
+      }
+
+      if (workOrdersError) {
+        throw workOrdersError;
+      }
+
+      motorcycle = motorcycleRow;
+      workOrder = (workOrders ?? [])[0] ?? null;
+    } else {
+      const { data: workOrderRow, error: workOrderError } = await client
+        .from("work_orders")
+        .select("*, motorcycles(*), work_order_updates(*)")
+        .eq("public_tracking_token", token)
+        .maybeSingle();
+
+      if (workOrderError) {
+        throw workOrderError;
+      }
+
+      workOrder = workOrderRow;
+      motorcycle = workOrderRow?.motorcycles ?? null;
     }
 
-    if (!workOrder || !workOrder.motorcycles) {
+    if (!motorcycle) {
       res.status(404).json({ error: "Takip kaydı bulunamadı." });
       return;
     }
-
-    const motorcycle = workOrder.motorcycles;
 
     const [{ data: profile }, { data: repairs }] = await Promise.all([
       client.from("profiles").select("shop_name").eq("id", motorcycle.user_id).maybeSingle(),
@@ -54,7 +86,7 @@ export default async function handler(req: any, res: any) {
       };
     });
 
-    const customerUpdates = Array.isArray(workOrder.work_order_updates)
+    const customerUpdates = Array.isArray(workOrder?.work_order_updates)
       ? workOrder.work_order_updates
           .filter((item: any) => item.visible_to_customer)
           .map((item: any) => ({
@@ -71,13 +103,15 @@ export default async function handler(req: any, res: any) {
         licensePlate: motorcycle.license_plate,
         model: motorcycle.model
       },
-      workOrder: {
-        complaint: workOrder.complaint,
-        status: workOrder.status,
-        estimatedDeliveryDate: workOrder.estimated_delivery_date,
-        updatedAt: workOrder.updated_at,
-        customerVisibleNote: workOrder.customer_visible_note
-      },
+      workOrder: workOrder
+        ? {
+            complaint: workOrder.complaint,
+            status: workOrder.status,
+            estimatedDeliveryDate: workOrder.estimated_delivery_date,
+            updatedAt: workOrder.updated_at,
+            customerVisibleNote: workOrder.customer_visible_note
+          }
+        : null,
       customerUpdates,
       latestRepair: normalizedRepairs[0] ?? null,
       unpaidTotal: normalizedRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0)

@@ -738,22 +738,25 @@ export async function fetchServiceManagementSummary() {
 
 export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
   await wait(100);
-  const activeUserId = getActiveUserId();
-  const motorcycles = readMotorcycles().filter((item) => item.userId === activeUserId);
-  const workOrders = readWorkOrders().filter((item) => item.userId === activeUserId);
-  const motorcycle = motorcycles.find((item) => item.id === motorcycleId) ?? null;
-  const workOrder = workOrders
-    .filter((item) => item.motorcycleId === motorcycleId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+  const [{ motorcycle }, workOrders] = await Promise.all([
+    fetchMotorcycleDetail(motorcycleId),
+    fetchWorkOrders()
+  ]);
 
-  if (!motorcycle || !workOrder) {
+  if (!motorcycle) {
     return null;
   }
+
+  const workOrder =
+    workOrders
+      .filter((item) => item.motorcycleId === motorcycleId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
 
   return {
     motorcycle,
     workOrder,
-    publicTrackingPath: `/takip/${workOrder.publicTrackingToken}`
+    qrToken: workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`,
+    publicTrackingPath: `/takip/${workOrder?.publicTrackingToken ?? `moto:${motorcycle.id}`}`
   };
 }
 

@@ -186,11 +186,13 @@ export function MotorcyclePage() {
           <Panel>
             <SectionTitle
               eyebrow="QR üret"
-              title={trackingCard ? "Müşteri takip erişimi hazır" : "Henüz aktif iş emri yok"}
+              title={trackingCard ? "Müşteri takip erişimi hazır" : "QR hazırlanamadı"}
               description={
                 trackingCard
-                  ? "QR kodunu buradan üretip yazdırabilirsin. Aynı kod, oturuma göre usta veya müşteri ekranını açar."
-                  : "Bu motosiklet için aktif iş emri oluştuğunda QR ve takip bağlantısı burada görünecek."
+                  ? trackingCard.workOrder
+                    ? "QR kodunu buradan üretip yazdırabilirsin. Aktif iş varsa müşteri devam eden süreci görür."
+                    : "Bu motosiklet için QR hazır. Aktif iş yoksa müşteri bunu görür."
+                  : "Bu motosiklet için takip kartı hazırlanamadı."
               }
             />
             {trackingCard ? (
@@ -198,7 +200,7 @@ export function MotorcyclePage() {
                 <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
                   <div className="flex justify-center">
                     <QrPreview
-                      value={`${origin}/qr/${trackingCard.workOrder.publicTrackingToken}`}
+                      value={`${origin}/qr/${trackingCard.qrToken}`}
                       alt={`${motorcycle.licensePlate} QR kodu`}
                     />
                   </div>
@@ -207,18 +209,24 @@ export function MotorcyclePage() {
                       <div className="flex items-center gap-3 text-ink">
                         <QrCode size={22} className="text-warning" />
                         <div>
-                          <p className="font-semibold">{trackingCard.workOrder.qrValue}</p>
-                          <p className="text-xs text-steel">{`${origin}/qr/${trackingCard.workOrder.publicTrackingToken}`}</p>
+                          <p className="font-semibold">{trackingCard.workOrder?.qrValue ?? `moto:${motorcycle.id}`}</p>
+                          <p className="text-xs text-steel">{`${origin}/qr/${trackingCard.qrToken}`}</p>
                         </div>
                       </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <span className={`inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(trackingCard.workOrder.status)}`}>
-                          {workOrderStatusLabel(trackingCard.workOrder.status)}
-                        </span>
-                        <span className="text-sm text-steel">
-                          Tahmini teslim: {formatShortDate(trackingCard.workOrder.estimatedDeliveryDate)}
-                        </span>
-                      </div>
+                      {trackingCard.workOrder ? (
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(trackingCard.workOrder.status)}`}>
+                            {workOrderStatusLabel(trackingCard.workOrder.status)}
+                          </span>
+                          <span className="text-sm text-steel">
+                            Tahmini teslim: {formatShortDate(trackingCard.workOrder.estimatedDeliveryDate)}
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="mt-4 text-sm text-steel">
+                          Şu an devam eden aktif iş yok. Müşteri QR okutursa bu bilgi gösterilir.
+                        </p>
+                      )}
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Button className="w-full gap-2" variant="secondary" type="button" onClick={() => window.print()}>

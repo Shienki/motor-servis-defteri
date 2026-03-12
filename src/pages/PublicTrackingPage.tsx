@@ -56,13 +56,21 @@ export function PublicTrackingPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/10 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.2em] text-mist">Durum</p>
-              <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(data.workOrder.status)}`}>
-                {workOrderStatusLabel(data.workOrder.status)}
-              </span>
+              {data.workOrder ? (
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(data.workOrder.status)}`}>
+                  {workOrderStatusLabel(data.workOrder.status)}
+                </span>
+              ) : (
+                <span className="mt-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs text-white">
+                  Devam eden süreç yok
+                </span>
+              )}
             </div>
             <div className="rounded-2xl bg-white/10 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.2em] text-mist">Tahmini teslim</p>
-              <p className="mt-2 font-semibold">{formatShortDate(data.workOrder.estimatedDeliveryDate)}</p>
+              <p className="mt-2 font-semibold">
+                {data.workOrder?.estimatedDeliveryDate ? formatShortDate(data.workOrder.estimatedDeliveryDate) : "Şu an planlanmadı"}
+              </p>
             </div>
           </div>
         </Panel>
@@ -73,20 +81,22 @@ export function PublicTrackingPage() {
               <Bike size={18} className="mt-0.5 text-warning" />
               <div>
                 <p className="font-medium text-ink">{data.motorcycle.model}</p>
-                <p>{data.workOrder.complaint}</p>
+                <p>{data.workOrder?.complaint || "Şu an devam eden aktif iş emri bulunmuyor."}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CalendarDays size={18} className="mt-0.5 text-warning" />
               <div>
                 <p className="font-medium text-ink">Son güncelleme</p>
-                <p>{formatShortDate(data.workOrder.updatedAt.slice(0, 10))}</p>
+                <p>{data.workOrder?.updatedAt ? formatShortDate(data.workOrder.updatedAt.slice(0, 10)) : "Güncelleme yok"}</p>
               </div>
             </div>
           </div>
           <div className="mt-5 rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
             <p className="font-medium text-ink">Servis notu</p>
-            <p className="mt-2">{data.workOrder.customerVisibleNote || "Servis notu henüz girilmedi."}</p>
+            <p className="mt-2">
+              {data.workOrder?.customerVisibleNote || "Şu an aktif bir süreç olmadığı için paylaşılmış servis notu yok."}
+            </p>
           </div>
         </Panel>
 
@@ -101,7 +111,11 @@ export function PublicTrackingPage() {
               <div key={item.id} className="rounded-2xl border border-slate/10 bg-sand px-4 py-4 text-sm text-steel">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium text-ink">{formatShortDate(item.createdAt.slice(0, 10))}</span>
-                  <span className={`inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(data.workOrder.status)}`}>
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs ${
+                      data.workOrder ? workOrderStatusTone(data.workOrder.status) : "bg-ink/10 text-ink"
+                    }`}
+                  >
                     Güncelleme
                   </span>
                 </div>
@@ -109,7 +123,9 @@ export function PublicTrackingPage() {
               </div>
             ))}
             {!data.customerUpdates.length ? (
-              <div className="rounded-2xl bg-sand px-4 py-4 text-sm text-steel">Henüz paylaşılmış durum güncellemesi yok.</div>
+              <div className="rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
+                {data.workOrder ? "Henüz paylaşılmış durum güncellemesi yok." : "Devam eden süreç olmadığı için paylaşılmış güncelleme yok."}
+              </div>
             ) : null}
           </div>
         </Panel>
