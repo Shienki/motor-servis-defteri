@@ -91,7 +91,7 @@ export function workOrderStatusLabel(status: WorkOrderStatus) {
 
 export function workOrderStatusTone(status: WorkOrderStatus) {
   if (status === "ready") return "bg-success/15 text-success ring-1 ring-success/25";
-  if (status === "delivered") return "bg-steel/15 text-ink ring-1 ring-steel/30";
+  if (status === "delivered") return "bg-ink text-white ring-1 ring-ink shadow-soft";
   if (status === "in_progress") return "bg-warning/20 text-warning ring-1 ring-warning/30";
   return "bg-info/15 text-info ring-1 ring-info/30";
 }
