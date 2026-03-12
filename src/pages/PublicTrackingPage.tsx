@@ -124,7 +124,9 @@ export function PublicTrackingPage() {
             ))}
             {!data.customerUpdates.length ? (
               <div className="rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
-                {data.workOrder ? "Henüz paylaşılmış durum güncellemesi yok." : "Aktif iş emri bulunmadığı için gösterilecek süreç güncellemesi yok."}
+                {data.workOrder
+                  ? "Henüz paylaşılmış durum güncellemesi yok."
+                  : "Aktif iş emri bulunmadığı için gösterilecek süreç güncellemesi yok."}
               </div>
             ) : null}
           </div>

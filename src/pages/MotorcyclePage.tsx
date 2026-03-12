@@ -303,6 +303,47 @@ export function MotorcyclePage() {
         </Link>
       </Panel>
 
+      <Panel>
+        <SectionTitle
+          eyebrow="İş durumu"
+          title={workOrderStatusLabel(trackingStatus)}
+          description="Usta burada işin hangi aşamada olduğunu seçer. Müşteri takip ekranında da aynı durum görünür."
+        />
+        <div className="mt-4 flex flex-wrap gap-3">
+          {quickStatusOptions.map((option) => {
+            const active = trackingStatus === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTrackingStatus(option.value)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  active
+                    ? workOrderStatusTone(option.value)
+                    : "bg-sand text-steel ring-1 ring-slate/10 hover:ring-amber/40"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <Label>Müşteriye görünecek kısa not</Label>
+            <Input
+              type="text"
+              placeholder="Örnek: Parça hazırlanıyor, bugün içinde teslim etmeyi planlıyoruz."
+              value={trackingNote}
+              onChange={(event) => setTrackingNote(event.target.value)}
+            />
+          </div>
+          <Button type="button" className="min-w-44" onClick={() => void saveTrackingStatus()} disabled={savingTracking}>
+            {savingTracking ? "Kaydediliyor..." : "Durumu kaydet"}
+          </Button>
+        </div>
+      </Panel>
+
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-5">
           <Panel>

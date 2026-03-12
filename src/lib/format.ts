@@ -72,21 +72,18 @@ export function formatShortDate(value: string | null) {
 }
 
 export function workOrderStatusLabel(status: WorkOrderStatus) {
-  if (status === "received") return "Kabul edildi";
+  if (status === "received") return "Sırada";
   if (status === "inspection") return "İnceleniyor";
-  if (status === "in_progress") return "İşlem başladı";
+  if (status === "in_progress") return "Hazırlanıyor";
   if (status === "waiting_parts") return "Parça bekleniyor";
   if (status === "waiting_approval") return "Onay bekleniyor";
-  if (status === "testing") return "Test ediliyor";
+  if (status === "testing") return "Testte";
   if (status === "ready") return "Hazır";
   return "Teslim edildi";
 }
 
 export function workOrderStatusTone(status: WorkOrderStatus) {
   if (status === "ready") return "bg-success/15 text-success ring-1 ring-success/20";
-  if (status === "waiting_parts" || status === "waiting_approval") {
-    return "bg-danger/15 text-danger ring-1 ring-danger/20";
-  }
   if (status === "delivered") return "bg-slate/10 text-steel ring-1 ring-slate/10";
   return "bg-warning/15 text-warning ring-1 ring-warning/20";
 }
