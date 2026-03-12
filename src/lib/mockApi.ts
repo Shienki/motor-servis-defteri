@@ -771,8 +771,9 @@ export async function fetchPublicTrackingByToken(token: string) {
 
 export async function resolveQrRedirect(token: string) {
   await wait(80);
+  const safeToken = clampText(token, 120);
   const authToken = await getAccessToken();
-  const response = await fetch(`/api/qr-resolve?token=${encodeURIComponent(clampText(token, 120))}`, {
+  const response = await fetch(`/api/qr-resolve?token=${encodeURIComponent(safeToken)}`, {
     headers: authToken
       ? {
           Authorization: `Bearer ${authToken}`
@@ -780,6 +781,12 @@ export async function resolveQrRedirect(token: string) {
       : undefined
   });
   if (!response.ok) {
+    if (safeToken.startsWith("moto:")) {
+      const motorcycleId = safeToken.slice("moto:".length);
+      return {
+        path: authToken ? `/motosiklet/${motorcycleId}` : `/takip/${safeToken}`
+      };
+    }
     return null;
   }
   return response.json();

@@ -3,6 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Panel, SectionTitle } from "../components/Ui";
 import { resolveQrRedirect } from "../lib/mockApi";
 
+function fallbackPath(token: string) {
+  if (token.startsWith("moto:")) {
+    return `/takip/${token}`;
+  }
+  return "/giris";
+}
+
 export function QrRedirectPage() {
   const { token = "" } = useParams();
   const navigate = useNavigate();
@@ -10,7 +17,7 @@ export function QrRedirectPage() {
   useEffect(() => {
     resolveQrRedirect(token).then((result) => {
       if (!result) {
-        navigate("/giris", { replace: true });
+        navigate(fallbackPath(token), { replace: true });
         return;
       }
 
