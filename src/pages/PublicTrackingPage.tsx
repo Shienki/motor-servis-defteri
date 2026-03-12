@@ -62,7 +62,7 @@ export function PublicTrackingPage() {
                 </span>
               ) : (
                 <span className="mt-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs text-white">
-                  Devam eden süreç yok
+                  Aktif iş emri bulunmamaktadır
                 </span>
               )}
             </div>
@@ -81,21 +81,21 @@ export function PublicTrackingPage() {
               <Bike size={18} className="mt-0.5 text-warning" />
               <div>
                 <p className="font-medium text-ink">{data.motorcycle.model}</p>
-                <p>{data.workOrder?.complaint || "Şu an devam eden aktif iş emri bulunmuyor."}</p>
+                <p>{data.workOrder?.complaint || "Bu motosiklet için şu an devam eden servis süreci yok."}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CalendarDays size={18} className="mt-0.5 text-warning" />
               <div>
                 <p className="font-medium text-ink">Son güncelleme</p>
-                <p>{data.workOrder?.updatedAt ? formatShortDate(data.workOrder.updatedAt.slice(0, 10)) : "Güncelleme yok"}</p>
+                <p>{data.workOrder?.updatedAt ? formatShortDate(data.workOrder.updatedAt.slice(0, 10)) : "Henüz güncelleme yok"}</p>
               </div>
             </div>
           </div>
           <div className="mt-5 rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
             <p className="font-medium text-ink">Servis notu</p>
             <p className="mt-2">
-              {data.workOrder?.customerVisibleNote || "Şu an aktif bir süreç olmadığı için paylaşılmış servis notu yok."}
+              {data.workOrder?.customerVisibleNote || "Aktif iş emri olmadığı için paylaşılmış servis notu bulunmuyor."}
             </p>
           </div>
         </Panel>
@@ -124,7 +124,7 @@ export function PublicTrackingPage() {
             ))}
             {!data.customerUpdates.length ? (
               <div className="rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
-                {data.workOrder ? "Henüz paylaşılmış durum güncellemesi yok." : "Devam eden süreç olmadığı için paylaşılmış güncelleme yok."}
+                {data.workOrder ? "Henüz paylaşılmış durum güncellemesi yok." : "Aktif iş emri bulunmadığı için gösterilecek süreç güncellemesi yok."}
               </div>
             ) : null}
           </div>

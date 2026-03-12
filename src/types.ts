@@ -63,6 +63,7 @@ export type AiRepairDraft = {
   kilometer: number | null;
   paymentStatus: PaymentStatus | null;
   notes: string;
+  assistantSummary?: string;
 };
 
 export type WorkOrder = {

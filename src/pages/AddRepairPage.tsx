@@ -28,8 +28,26 @@ const emptyDraft: AiRepairDraft = {
   partsCost: null,
   kilometer: null,
   paymentStatus: null,
-  notes: ""
+  notes: "",
+  assistantSummary: ""
 };
+
+function buildAssistantSummary(draft: AiRepairDraft) {
+  const parts = [
+    draft.description ? `İşlem: ${draft.description}` : null,
+    draft.laborCost !== null ? `İşçilik: ${draft.laborCost} TL` : null,
+    draft.partsCost !== null ? `Parça: ${draft.partsCost} TL` : null,
+    draft.kilometer !== null ? `Kilometre: ${draft.kilometer}` : null,
+    draft.paymentStatus
+      ? `Ödeme durumu: ${
+          draft.paymentStatus === "paid" ? "ödendi" : draft.paymentStatus === "partial" ? "kısmi" : "ödenmedi"
+        }`
+      : null,
+    draft.notes ? `Not: ${draft.notes}` : null
+  ].filter(Boolean);
+
+  return parts.length ? `Şu şekilde kaydedilecek: ${parts.join(". ")}.` : "AI kaydı hazırlıyor.";
+}
 
 export function AddRepairPage() {
   const navigate = useNavigate();
@@ -54,15 +72,22 @@ export function AddRepairPage() {
   }, [motorcycleId]);
 
   const totalCost = useMemo(() => (draft.laborCost ?? 0) + (draft.partsCost ?? 0), [draft.laborCost, draft.partsCost]);
+  const assistantSummary = useMemo(
+    () => draft.assistantSummary?.trim() || buildAssistantSummary(draft),
+    [draft]
+  );
 
   async function analyzeTranscript(transcript: string) {
     setAnalyzing(true);
-    setStatusMessage("Ses çözümleniyor, alanlar hazırlanıyor.");
+    setStatusMessage("AI notu çözümlüyor ve kaydı hazırlıyor.");
 
     try {
       const result = await analyzeRepairTranscript(transcript);
-      setDraft(result);
-      setStatusMessage("Alanlar dolduruldu. Kaydetmeden önce istersen düzenle.");
+      setDraft({
+        ...result,
+        assistantSummary: result.assistantSummary?.trim() || buildAssistantSummary(result)
+      });
+      setStatusMessage("AI kaydı hazırladı. Aşağıdaki özet üzerinden onay verebilirsin.");
     } finally {
       setAnalyzing(false);
     }
@@ -107,7 +132,7 @@ export function AddRepairPage() {
 
     recognition.onerror = () => {
       setRecording(false);
-      setStatusMessage("Ses alınamadı. Mikrofonu biraz daha yakın tutup tekrar dene.");
+      setStatusMessage("Ses alındı ama net çözülemedi. Daha kısa ve net konuşup tekrar dene.");
     };
 
     recognition.onend = () => {
@@ -164,7 +189,7 @@ export function AddRepairPage() {
           title={`${motorcycle.licensePlate} için yeni işlem`}
           titleClassName="text-white"
           eyebrowClassName="text-amber-200"
-          description="Mikrofona bas, yapılan işi anlat, sistem özeti çıkarıp onaya sunsun."
+          description="Mikrofona bas, yapılan işi anlat, AI önce ne kaydedileceğini söylesin, sonra onay ver."
         />
         <div className="mt-6 grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
           <button
@@ -184,11 +209,11 @@ export function AddRepairPage() {
           <div className="rounded-[28px] border border-white/10 bg-white/15 p-5">
             <div className="flex items-center gap-2 text-white">
               <Sparkles size={18} className="text-amber-200" />
-              <p className="text-sm font-semibold text-white">Yapay zeka özeti</p>
+              <p className="text-sm font-semibold text-white">AI geri bildirimi</p>
             </div>
             <p className="mt-3 text-sm leading-6 text-white/92">{statusMessage}</p>
             <div className="mt-4 rounded-2xl bg-amber/20 px-4 py-3 text-sm text-white">
-              Sistemin amacı zamanı azaltmak; son karar her zaman usta onayında kalır.
+              {assistantSummary}
             </div>
             <div className="mt-4 rounded-2xl bg-ink/30 px-4 py-4 text-sm text-white/90">
               <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Duyulan metin</p>
@@ -202,7 +227,7 @@ export function AddRepairPage() {
         <SectionTitle
           eyebrow="Onay ekranı"
           title="Kaydetmeden önce düzenle"
-          description="Yapay zeka sonucunu gerekirse düzelt, sonra tek dokunuşla kaydet."
+          description="AI önce özeti hazırlar. Son kontrol her zaman ustadadır."
         />
 
         <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>

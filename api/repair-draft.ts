@@ -7,6 +7,7 @@ type RepairDraft = {
   kilometer: number | null;
   payment_status: "paid" | "unpaid" | "partial" | null;
   notes: string;
+  assistant_summary: string;
 };
 
 const schema = {
@@ -24,9 +25,10 @@ const schema = {
         type: ["string", "null"],
         enum: ["paid", "unpaid", "partial", null]
       },
-      notes: { type: "string" }
+      notes: { type: "string" },
+      assistant_summary: { type: "string" }
     },
-    required: ["description", "labor_cost", "parts_cost", "kilometer", "payment_status", "notes"]
+    required: ["description", "labor_cost", "parts_cost", "kilometer", "payment_status", "notes", "assistant_summary"]
   }
 };
 
@@ -37,7 +39,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const authenticatedUser = await requireAuthenticatedUser(req);
-  if (!authenticatedUser) {
+  if (!authenticatedUser.user) {
     res.status(401).json({ error: "Oturum gerekli." });
     return;
   }
@@ -66,7 +68,7 @@ export default async function handler(req: any, res: any) {
         {
           role: "system",
           content:
-            "Sen motosiklet servis notlarını yapılandırılmış alana çeviren bir asistansın. Yalnızca geçerli JSON üret. Eksik bilgi varsa null döndür. Fiyat uydurma."
+            "Sen motosiklet servis notlarını yapılandırılmış alana çeviren bir asistansın. Yalnızca geçerli JSON üret. Eksik bilgi varsa null döndür. Fiyat uydurma. assistant_summary alanında ustaya kısa ve net bir geri bildirim ver; hangi işlem, hangi tutar, hangi kilometre ve hangi ödeme durumu kaydedilecek açıkça söyle."
         },
         {
           role: "user",
