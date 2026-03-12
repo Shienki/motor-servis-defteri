@@ -110,7 +110,12 @@ export function LoginPage() {
               Giriş Yap
             </Button>
 
-            <p className="text-center text-sm text-steel">Yeni hesap açma şu an kapalı. Giriş için mevcut hesap veya yönetici hesabı kullanılır.</p>
+            <p className="text-center text-sm text-steel">
+              Hesabın yok mu?{" "}
+              <Link className="font-semibold text-warning" to="/kayit">
+                Kayıt Ol
+              </Link>
+            </p>
 
             <p className="text-center text-sm text-steel">
               Yönetici girişi için{" "}

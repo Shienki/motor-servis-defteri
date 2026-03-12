@@ -22,7 +22,7 @@ export default function App() {
       <Route path="/giris" element={<LoginPage />} />
       <Route path="/yonetici/giris" element={<AdminLoginPage />} />
       <Route path="/yonetici/panel" element={<AdminPanelPage />} />
-      <Route path="/kayit" element={<Navigate to="/giris" replace />} />
+      <Route path="/kayit" element={<RegisterPage />} />
       <Route path="/qr/:token" element={<QrRedirectPage />} />
       <Route path="/takip/:token" element={<PublicTrackingPage />} />
       <Route element={<AppLayout />}>
