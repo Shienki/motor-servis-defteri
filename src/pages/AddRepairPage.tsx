@@ -67,21 +67,26 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function parseTurkishNumber(value: string) {
+  const digitsOnly = value.replace(/[^\d]/g, "");
+  return digitsOnly ? Number(digitsOnly) : null;
+}
+
 function extractNumberNearKeywords(transcript: string, keywords: string[]) {
   const lowerTranscript = transcript.toLocaleLowerCase("tr-TR");
 
   for (const keyword of keywords) {
     const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const afterMatch = new RegExp(`${escapedKeyword}[^\\d]{0,12}(\\d{2,6})`, "i").exec(lowerTranscript);
+    const afterMatch = new RegExp(`${escapedKeyword}[^\\d]{0,16}(\\d[\\d.,]{1,10})`, "i").exec(lowerTranscript);
 
     if (afterMatch) {
-      return Number(afterMatch[1]);
+      return parseTurkishNumber(afterMatch[1]);
     }
 
-    const beforeMatch = new RegExp(`(\\d{2,6})[^\\d]{0,12}${escapedKeyword}`, "i").exec(lowerTranscript);
+    const beforeMatch = new RegExp(`(\\d[\\d.,]{1,10})[^\\d]{0,16}${escapedKeyword}`, "i").exec(lowerTranscript);
 
     if (beforeMatch) {
-      return Number(beforeMatch[1]);
+      return parseTurkishNumber(beforeMatch[1]);
     }
   }
 
@@ -90,15 +95,15 @@ function extractNumberNearKeywords(transcript: string, keywords: string[]) {
 
 function extractKilometer(transcript: string) {
   const lowerTranscript = transcript.toLocaleLowerCase("tr-TR");
-  const directMatch = /(\d{4,7})\s*(km|kilometre|kilometrede|kilometresi)/i.exec(lowerTranscript);
+  const directMatch = /(\d[\d.,]{3,10})\s*(km|kilometre|kilometrede|kilometresi)/i.exec(lowerTranscript);
 
   if (directMatch) {
-    return Number(directMatch[1]);
+    return parseTurkishNumber(directMatch[1]);
   }
 
-  const keywordMatch = /(km|kilometre|kilometrede|kilometresi)[^\d]{0,12}(\d{4,7})/i.exec(lowerTranscript);
+  const keywordMatch = /(km|kilometre|kilometrede|kilometresi)[^\d]{0,12}(\d[\d.,]{3,10})/i.exec(lowerTranscript);
   if (keywordMatch) {
-    return Number(keywordMatch[2]);
+    return parseTurkishNumber(keywordMatch[2]);
   }
 
   return null;
@@ -143,22 +148,48 @@ function extractPaymentStatus(transcript: string): PaymentStatus | null {
   return null;
 }
 
+function buildDescriptionFromTranscript(transcript: string) {
+  const normalized = normalizeText(transcript);
+  const hasWorkVerb = [
+    "degisti",
+    "degisim",
+    "takildi",
+    "yapildi",
+    "kontrol edildi",
+    "temizlendi",
+    "ayarlandi",
+    "bakimi yapildi",
+    "yenilendi",
+    "tamir edildi"
+  ].some((item) => normalized.includes(item));
+
+  const priceOnlySentence =
+    /^(yedek parca|parca|iscilik|iscilik ucreti|yedek parca ucreti)[^a-z0-9]*\d/i.test(normalized) &&
+    !hasWorkVerb;
+
+  return priceOnlySentence ? "" : transcript.trim();
+}
+
 function buildHeuristicDraftFromTranscript(transcript: string): AiRepairDraft {
   const cleanedTranscript = transcript.trim();
   const laborCost = extractNumberNearKeywords(cleanedTranscript, ["işçilik", "iscilik", "usta", "emek"]);
   const partsCost = extractNumberNearKeywords(cleanedTranscript, ["parça", "parca", "yedek parça", "yedek parca"]);
   const kilometer = extractKilometer(cleanedTranscript);
   const paymentStatus = extractPaymentStatus(cleanedTranscript);
+  const description = buildDescriptionFromTranscript(cleanedTranscript);
 
   return {
     ...emptyDraft,
-    description: cleanedTranscript,
+    description,
     laborCost,
     partsCost,
     kilometer,
     paymentStatus,
-    notes: cleanedTranscript,
-    assistantSummary: "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
+    notes: description ? cleanedTranscript : "",
+    assistantSummary:
+      laborCost !== null || partsCost !== null || kilometer !== null || paymentStatus !== null
+        ? "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
+        : "AI şu an net ayrıştırma yapamadı. Duyulan metin taslak olarak aktarıldı, alanları kontrol et."
   };
 }
 
@@ -174,7 +205,7 @@ function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
     return true;
   }
 
-  if (!normalizedDescription) {
+  if (!normalizedDescription && !draft.partsCost && !draft.laborCost && !draft.kilometer) {
     return true;
   }
 
@@ -188,11 +219,11 @@ function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
     .map((value) => String(value));
   const numericOverlapCount = guessedNumbers.filter((value) => transcriptNumbers.includes(value)).length;
 
-  if (overlapCount === 0) {
+  if (overlapCount === 0 && normalizedDescription) {
     return true;
   }
 
-  if (overlapCount <= 1 && hasFinancialGuess) {
+  if (overlapCount <= 1 && hasFinancialGuess && normalizedDescription) {
     return true;
   }
 
@@ -204,18 +235,7 @@ function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
 }
 
 function fallbackDraftFromTranscript(transcript: string): AiRepairDraft {
-  const heuristicDraft = buildHeuristicDraftFromTranscript(transcript);
-
-  return {
-    ...heuristicDraft,
-    assistantSummary:
-      heuristicDraft.laborCost !== null ||
-      heuristicDraft.partsCost !== null ||
-      heuristicDraft.kilometer !== null ||
-      heuristicDraft.paymentStatus !== null
-        ? "AI transkriptten temel alanları çıkardı. Kaydetmeden önce kontrol et."
-        : "AI şu an net ayrıştırma yapamadı. Duyulan metin taslak olarak aktarıldı, alanları kontrol et."
-  };
+  return buildHeuristicDraftFromTranscript(transcript);
 }
 
 export function AddRepairPage() {
