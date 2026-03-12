@@ -1,6 +1,26 @@
 import { categorizeRepairTranscript } from "./_repair-ai";
 import { requireAuthenticatedUser } from "./_supabase";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "8mb"
+    }
+  }
+};
+
+function getFilenameFromMimeType(mimeType: string) {
+  if (mimeType.includes("mp4")) {
+    return "repair-note.m4a";
+  }
+
+  if (mimeType.includes("ogg")) {
+    return "repair-note.ogg";
+  }
+
+  return "repair-note.webm";
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -30,7 +50,8 @@ export default async function handler(req: any, res: any) {
     const audioBytes = Buffer.from(audioBase64, "base64");
     const transcriptionForm = new FormData();
     const audioBlob = new Blob([audioBytes], { type: mimeType || "audio/webm" });
-    transcriptionForm.append("file", audioBlob, "repair-note.webm");
+
+    transcriptionForm.append("file", audioBlob, getFilenameFromMimeType(mimeType || "audio/webm"));
     transcriptionForm.append("model", "whisper-1");
     transcriptionForm.append("language", "tr");
 
@@ -44,6 +65,12 @@ export default async function handler(req: any, res: any) {
 
     if (!transcriptionResponse.ok) {
       const errorText = await transcriptionResponse.text();
+      console.error("Whisper transcription failed", {
+        status: transcriptionResponse.status,
+        mimeType,
+        size: audioBytes.length,
+        errorText
+      });
       res.status(transcriptionResponse.status).json({ error: errorText || "Whisper işlenemedi." });
       return;
     }
@@ -62,6 +89,7 @@ export default async function handler(req: any, res: any) {
       ...parsed
     });
   } catch (error) {
+    console.error("repair-voice route failed", error);
     const message = error instanceof Error ? error.message : "Ses kaydı işlenemedi.";
     res.status(502).json({ error: message || "Ses kaydı işlenemedi." });
   }
