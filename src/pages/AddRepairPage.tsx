@@ -1,10 +1,26 @@
 import { Mic, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
 import { formatCurrency, numbersOnly } from "../lib/format";
 import { analyzeRepairTranscript, createRepairDraft, fetchMotorcycleDetail } from "../lib/mockApi";
 import type { AiRepairDraft, Motorcycle, PaymentStatus } from "../types";
+
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserWindow = Window & {
+  SpeechRecognition?: new () => BrowserSpeechRecognition;
+  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+};
 
 const emptyDraft: AiRepairDraft = {
   description: "",
@@ -18,29 +34,106 @@ const emptyDraft: AiRepairDraft = {
 export function AddRepairPage() {
   const navigate = useNavigate();
   const { motorcycleId = "" } = useParams();
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const transcriptRef = useRef("");
   const [motorcycle, setMotorcycle] = useState<Motorcycle | null>(null);
   const [recording, setRecording] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("Mikrofona bas, yapılan işi anlat, sistem özeti hazırlasın.");
+  const [heardTranscript, setHeardTranscript] = useState("");
   const [draft, setDraft] = useState<AiRepairDraft>(emptyDraft);
 
   useEffect(() => {
     fetchMotorcycleDetail(motorcycleId).then((data) => setMotorcycle(data.motorcycle));
+
+    return () => {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+    };
   }, [motorcycleId]);
 
   const totalCost = useMemo(() => (draft.laborCost ?? 0) + (draft.partsCost ?? 0), [draft.laborCost, draft.partsCost]);
 
-  async function handleVoiceFlow() {
-    setRecording(true);
-    setDraft(emptyDraft);
+  async function analyzeTranscript(transcript: string) {
+    setAnalyzing(true);
+    setStatusMessage("Ses çözümleniyor, alanlar hazırlanıyor.");
 
-    window.setTimeout(async () => {
-      setRecording(false);
-      setAnalyzing(true);
-      const result = await analyzeRepairTranscript();
+    try {
+      const result = await analyzeRepairTranscript(transcript);
       setDraft(result);
+      setStatusMessage("Alanlar dolduruldu. Kaydetmeden önce istersen düzenle.");
+    } finally {
       setAnalyzing(false);
-    }, 1200);
+    }
+  }
+
+  async function handleVoiceFlow() {
+    const browserWindow = window as BrowserWindow;
+    const RecognitionCtor = browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
+
+    if (!RecognitionCtor) {
+      setStatusMessage("Bu tarayıcıda sesli yazıya çevirme desteği yok. Şimdilik alanları elle doldurabilirsin.");
+      return;
+    }
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setStatusMessage("Mikrofon izni verilmedi. Tarayıcıdan izin verip tekrar dene.");
+      return;
+    }
+
+    setDraft(emptyDraft);
+    setHeardTranscript("");
+    transcriptRef.current = "";
+    setRecording(true);
+    setStatusMessage("Dinliyorum. İş bitince tekrar basarak kaydı durdurabilirsin.");
+
+    const recognition = new RecognitionCtor();
+    recognition.lang = "tr-TR";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript ?? "")
+        .join(" ")
+        .trim();
+
+      transcriptRef.current = transcript;
+      setHeardTranscript(transcript);
+    };
+
+    recognition.onerror = () => {
+      setRecording(false);
+      setStatusMessage("Ses alınamadı. Mikrofonu biraz daha yakın tutup tekrar dene.");
+    };
+
+    recognition.onend = () => {
+      const finalTranscript = transcriptRef.current.trim();
+      setRecording(false);
+      recognitionRef.current = null;
+
+      if (!finalTranscript) {
+        setStatusMessage("Anlaşılır bir ses kaydı alınamadı. Tekrar deneyebilirsin.");
+        return;
+      }
+
+      void analyzeTranscript(finalTranscript);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
+
+  function handleMicButton() {
+    if (recording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    void handleVoiceFlow();
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -48,6 +141,7 @@ export function AddRepairPage() {
     setSaving(true);
     await createRepairDraft(motorcycleId, draft);
     setDraft(emptyDraft);
+    setHeardTranscript("");
     setSaving(false);
     navigate(`/motosiklet/${motorcycleId}`);
   }
@@ -68,37 +162,37 @@ export function AddRepairPage() {
         <SectionTitle
           eyebrow="Sesli kayıt"
           title={`${motorcycle.licensePlate} için yeni işlem`}
-          description="Butona bas, yapılan işi anlat, sistem özet çıkarıp onaya sunsun."
+          titleClassName="text-white"
+          eyebrowClassName="text-amber-200"
+          description="Mikrofona bas, yapılan işi anlat, sistem özeti çıkarıp onaya sunsun."
         />
         <div className="mt-6 grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
           <button
             type="button"
-            onClick={() => void handleVoiceFlow()}
+            onClick={handleMicButton}
             className={`flex min-h-56 flex-col items-center justify-center rounded-[28px] border border-white/10 px-6 py-8 text-center transition ${
               recording ? "bg-danger text-white" : "bg-white/15 text-white hover:bg-white/20"
             }`}
           >
             <Mic size={36} />
-            <p className="mt-4 text-lg font-semibold">{recording ? "Kayıt alınıyor..." : "Bas ve kaydı başlat"}</p>
-            <p className="mt-2 max-w-xs text-sm text-white/85">
+            <p className="mt-4 text-xl font-semibold text-white">{recording ? "Kaydı durdur" : "Bas ve kaydı başlat"}</p>
+            <p className="mt-3 max-w-xs text-sm leading-6 text-white/92">
               Örnek: Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı.
             </p>
           </button>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/10 p-5">
-            <div className="flex items-center gap-2 text-amber-200">
-              <Sparkles size={18} />
-              <p className="text-sm font-medium">Yapay zeka özeti</p>
+          <div className="rounded-[28px] border border-white/10 bg-white/15 p-5">
+            <div className="flex items-center gap-2 text-white">
+              <Sparkles size={18} className="text-amber-200" />
+              <p className="text-sm font-semibold text-white">Yapay zeka özeti</p>
             </div>
-            <p className="mt-3 text-sm text-white/85">
-              {analyzing
-                ? "Ses çözümlemesi yapılıyor ve alanlar otomatik dolduruluyor..."
-                : draft.description
-                  ? "Alanlar dolduruldu. Kaydetmeden önce istersen düzenle."
-                  : "Henüz ses kaydı alınmadı. Kayıt sonrası burada özet görünecek."}
-            </p>
-            <div className="mt-4 rounded-2xl bg-amber/15 px-4 py-3 text-sm text-white/90">
+            <p className="mt-3 text-sm leading-6 text-white/92">{statusMessage}</p>
+            <div className="mt-4 rounded-2xl bg-amber/20 px-4 py-3 text-sm text-white">
               Sistemin amacı zamanı azaltmak; son karar her zaman usta onayında kalır.
+            </div>
+            <div className="mt-4 rounded-2xl bg-ink/30 px-4 py-4 text-sm text-white/90">
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Duyulan metin</p>
+              <p className="mt-2 min-h-10">{heardTranscript || "Henüz ses kaydı alınmadı."}</p>
             </div>
           </div>
         </div>
