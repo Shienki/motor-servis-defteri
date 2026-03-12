@@ -970,7 +970,7 @@ export async function simulateVoiceExtraction(): Promise<AiRepairDraft> {
 }
 
 function parseTurkishNumber(rawValue: string) {
-  const sanitized = rawValue.replace(/[^\d.,]/g, "").trim();
+  const sanitized = rawValue.replace(/[^\d.,]/g, "").trim().replace(/[.,]+$/g, "");
   if (!sanitized) return null;
 
   let normalized = sanitized;
@@ -980,6 +980,8 @@ function parseTurkishNumber(rawValue: string) {
     normalized = normalized.replace(/,/g, "");
   } else if (normalized.includes(",") && !normalized.includes(".")) {
     normalized = normalized.replace(",", ".");
+  } else if (/^\d+\.\d{3}$/.test(normalized) || /^\d+\.\d{3}\.\d{3}$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, "");
   }
 
   const parsed = Number.parseFloat(normalized);
@@ -1001,6 +1003,7 @@ function normalizeTranscriptForExtraction(transcript: string) {
       /((?:iscilik|işçilik|yedek\s*parca|yedek\s*parça|parca|parça|kilometre|kilometer|km)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?)\s*[.:;=-]+\s*(\d)/giu,
       "$1 $2"
     )
+    .replace(/\b(\d{1,3}(?:\.\d{3})+(?:,\d+)?)\b/gu, (_, value: string) => value.replace(/\./g, ""))
     .replace(/\s+/g, " ")
     .trim();
 }
