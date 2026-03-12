@@ -21,6 +21,37 @@ function getFilenameFromMimeType(mimeType: string) {
   return "repair-note.webm";
 }
 
+function buildMultipartBody(audioBytes: Buffer, mimeType: string) {
+  const boundary = `----motor-servis-${Date.now().toString(16)}`;
+  const filename = getFilenameFromMimeType(mimeType);
+  const chunks: Buffer[] = [];
+
+  const pushText = (value: string) => {
+    chunks.push(Buffer.from(value, "utf8"));
+  };
+
+  pushText(`--${boundary}\r\n`);
+  pushText(`Content-Disposition: form-data; name="file"; filename="${filename}"\r\n`);
+  pushText(`Content-Type: ${mimeType || "audio/webm"}\r\n\r\n`);
+  chunks.push(audioBytes);
+  pushText("\r\n");
+
+  pushText(`--${boundary}\r\n`);
+  pushText('Content-Disposition: form-data; name="model"\r\n\r\n');
+  pushText("whisper-1\r\n");
+
+  pushText(`--${boundary}\r\n`);
+  pushText('Content-Disposition: form-data; name="language"\r\n\r\n');
+  pushText("tr\r\n");
+
+  pushText(`--${boundary}--\r\n`);
+
+  return {
+    boundary,
+    body: Buffer.concat(chunks)
+  };
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -48,19 +79,15 @@ export default async function handler(req: any, res: any) {
 
   try {
     const audioBytes = Buffer.from(audioBase64, "base64");
-    const transcriptionForm = new FormData();
-    const audioBlob = new Blob([audioBytes], { type: mimeType || "audio/webm" });
-
-    transcriptionForm.append("file", audioBlob, getFilenameFromMimeType(mimeType || "audio/webm"));
-    transcriptionForm.append("model", "whisper-1");
-    transcriptionForm.append("language", "tr");
+    const { boundary, body } = buildMultipartBody(audioBytes, mimeType || "audio/webm");
 
     const transcriptionResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": `multipart/form-data; boundary=${boundary}`
       },
-      body: transcriptionForm
+      body
     });
 
     if (!transcriptionResponse.ok) {
