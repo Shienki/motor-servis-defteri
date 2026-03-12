@@ -75,29 +75,29 @@ export function AddRepairPage() {
             type="button"
             onClick={() => void handleVoiceFlow()}
             className={`flex min-h-56 flex-col items-center justify-center rounded-[28px] border border-white/10 px-6 py-8 text-center transition ${
-              recording ? "bg-danger text-white" : "bg-white/10 text-white hover:bg-white/15"
+              recording ? "bg-danger text-white" : "bg-white/15 text-white hover:bg-white/20"
             }`}
           >
             <Mic size={36} />
             <p className="mt-4 text-lg font-semibold">{recording ? "Kayıt alınıyor..." : "Bas ve kaydı başlat"}</p>
-            <p className="mt-2 max-w-xs text-sm text-sand/80">
+            <p className="mt-2 max-w-xs text-sm text-white/85">
               Örnek: Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı.
             </p>
           </button>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
-            <div className="flex items-center gap-2 text-amber">
+          <div className="rounded-[28px] border border-white/10 bg-white/10 p-5">
+            <div className="flex items-center gap-2 text-amber-200">
               <Sparkles size={18} />
               <p className="text-sm font-medium">Yapay zeka özeti</p>
             </div>
-            <p className="mt-3 text-sm text-sand/80">
+            <p className="mt-3 text-sm text-white/85">
               {analyzing
-                ? "Ses çözümleniyor ve alanlar otomatik dolduruluyor..."
+                ? "Ses çözümlemesi yapılıyor ve alanlar otomatik dolduruluyor..."
                 : draft.description
                   ? "Alanlar dolduruldu. Kaydetmeden önce istersen düzenle."
                   : "Henüz ses kaydı alınmadı. Kayıt sonrası burada özet görünecek."}
             </p>
-            <div className="mt-4 rounded-2xl bg-amber/10 px-4 py-3 text-sm text-sand">
+            <div className="mt-4 rounded-2xl bg-amber/15 px-4 py-3 text-sm text-white/90">
               Sistemin amacı zamanı azaltmak; son karar her zaman usta onayında kalır.
             </div>
           </div>
@@ -113,7 +113,7 @@ export function AddRepairPage() {
 
         <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
           <div>
-            <Label>İşlem Açıklaması</Label>
+            <Label>İşlem açıklaması</Label>
             <Textarea
               placeholder="Yapılan işlemi detaylı yazın"
               value={draft.description}
@@ -123,7 +123,7 @@ export function AddRepairPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>İşçilik Ücreti</Label>
+              <Label>İşçilik ücreti</Label>
               <Input
                 inputMode="numeric"
                 placeholder="0"
@@ -138,7 +138,7 @@ export function AddRepairPage() {
             </div>
 
             <div>
-              <Label>Yedek Parça Ücreti</Label>
+              <Label>Yedek parça ücreti</Label>
               <Input
                 inputMode="numeric"
                 placeholder="0"
@@ -170,7 +170,7 @@ export function AddRepairPage() {
             </div>
 
             <div>
-              <Label>Ödeme Durumu</Label>
+              <Label>Ödeme durumu</Label>
               <select
                 className="min-h-12 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-sm outline-none focus:border-amber"
                 value={draft.paymentStatus ?? ""}
@@ -200,7 +200,7 @@ export function AddRepairPage() {
 
           <div className="rounded-[24px] bg-sand p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-steel">Toplam Tutar</span>
+              <span className="text-sm text-steel">Toplam tutar</span>
               <span className="text-lg font-semibold text-ink">{formatCurrency(totalCost)}</span>
             </div>
           </div>

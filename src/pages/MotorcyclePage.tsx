@@ -146,10 +146,10 @@ export function MotorcyclePage() {
             <div className="mt-3 inline-flex rounded-2xl border-2 border-amber bg-white px-5 py-3 text-ink shadow-sm">
               <h2 className="text-3xl font-black tracking-[0.18em]">{motorcycle.licensePlate}</h2>
             </div>
-            <p className="mt-3 text-sand/80">{motorcycle.model}</p>
+            <p className="mt-3 text-base font-medium text-white/90">{motorcycle.model}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
+            <div className="rounded-2xl bg-white/15 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.2em] text-mist">Güncel km</p>
               <p className="mt-1 text-xl font-semibold">{motorcycle.kilometer.toLocaleString("tr-TR")} km</p>
             </div>

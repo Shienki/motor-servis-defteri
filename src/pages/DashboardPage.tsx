@@ -126,7 +126,7 @@ export function DashboardPage() {
             Aktif İşler
           </Button>
         </div>
-        <p className="mt-4 text-sm text-sand/80">{message}</p>
+        <p className="mt-4 text-sm text-white/85">{message}</p>
       </Panel>
 
       <div className="grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
