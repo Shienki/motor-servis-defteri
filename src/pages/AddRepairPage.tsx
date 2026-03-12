@@ -10,11 +10,21 @@ type BrowserSpeechRecognition = {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
-  onresult: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
+};
+
+type SpeechRecognitionResultLike = {
+  0?: {
+    transcript?: string;
+  };
+};
+
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<SpeechRecognitionResultLike>;
 };
 
 type BrowserWindow = Window & {
@@ -47,6 +57,66 @@ function buildAssistantSummary(draft: AiRepairDraft) {
   ].filter(Boolean);
 
   return parts.length ? `Şu şekilde kaydedilecek: ${parts.join(". ")}.` : "AI kaydı hazırlıyor.";
+}
+
+function normalizeText(value: string) {
+  return value
+    .toLocaleLowerCase("tr-TR")
+    .replace(/[^a-z0-9çğıöşü\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isClearlyDemoDraft(transcript: string, draft: AiRepairDraft) {
+  const normalizedTranscript = normalizeText(transcript);
+  const normalizedDescription = normalizeText(draft.description);
+
+  if (!normalizedTranscript) {
+    return false;
+  }
+
+  if (draft.laborCost === 950 && draft.partsCost === 700 && draft.kilometer === 18720) {
+    return true;
+  }
+
+  if (!normalizedDescription) {
+    return true;
+  }
+
+  const transcriptWords = normalizedTranscript.split(" ").filter((item) => item.length > 3);
+  const overlapCount = transcriptWords.filter((word) => normalizedDescription.includes(word)).length;
+  const hasFinancialGuess =
+    draft.laborCost !== null || draft.partsCost !== null || draft.kilometer !== null || draft.paymentStatus !== null;
+  const transcriptNumbers: string[] = normalizedTranscript.match(/\d+/g) ?? [];
+  const guessedNumbers = [draft.laborCost, draft.partsCost, draft.kilometer]
+    .filter((value): value is number => value !== null)
+    .map((value) => String(value));
+  const numericOverlapCount = guessedNumbers.filter((value) => transcriptNumbers.includes(value)).length;
+
+  if (overlapCount === 0) {
+    return true;
+  }
+
+  if (overlapCount <= 1 && hasFinancialGuess) {
+    return true;
+  }
+
+  if (guessedNumbers.length > 0 && numericOverlapCount === 0) {
+    return true;
+  }
+
+  return false;
+}
+
+function fallbackDraftFromTranscript(transcript: string): AiRepairDraft {
+  const cleanedTranscript = transcript.trim();
+
+  return {
+    ...emptyDraft,
+    description: cleanedTranscript,
+    notes: cleanedTranscript,
+    assistantSummary: "AI şu an net ayrıştırma yapamadı. Duyulan metin taslak olarak aktarıldı, alanları kontrol et."
+  };
 }
 
 export function AddRepairPage() {
@@ -83,9 +153,11 @@ export function AddRepairPage() {
 
     try {
       const result = await analyzeRepairTranscript(transcript);
+      const safeResult = isClearlyDemoDraft(transcript, result) ? fallbackDraftFromTranscript(transcript) : result;
+
       setDraft({
-        ...result,
-        assistantSummary: result.assistantSummary?.trim() || buildAssistantSummary(result)
+        ...safeResult,
+        assistantSummary: safeResult.assistantSummary?.trim() || buildAssistantSummary(safeResult)
       });
       setStatusMessage("AI kaydı hazırladı. Aşağıdaki özet üzerinden onay verebilirsin.");
     } finally {
@@ -122,7 +194,7 @@ export function AddRepairPage() {
 
     recognition.onresult = (event) => {
       const transcript = Array.from(event.results)
-        .map((result: any) => result[0]?.transcript ?? "")
+        .map((result) => result[0]?.transcript ?? "")
         .join(" ")
         .trim();
 
@@ -195,12 +267,15 @@ export function AddRepairPage() {
           <button
             type="button"
             onClick={handleMicButton}
+            disabled={analyzing}
             className={`flex min-h-56 flex-col items-center justify-center rounded-[28px] border border-white/10 px-6 py-8 text-center transition ${
               recording ? "bg-danger text-white" : "bg-white/15 text-white hover:bg-white/20"
-            }`}
+            } ${analyzing ? "cursor-wait opacity-80" : ""}`}
           >
             <Mic size={36} />
-            <p className="mt-4 text-xl font-semibold text-white">{recording ? "Kaydı durdur" : "Bas ve kaydı başlat"}</p>
+            <p className="mt-4 text-xl font-semibold text-white">
+              {recording ? "Kaydı durdur" : analyzing ? "AI hazırlıyor" : "Bas ve kaydı başlat"}
+            </p>
             <p className="mt-3 max-w-xs text-sm leading-6 text-white/92">
               Örnek: Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı.
             </p>
@@ -325,7 +400,7 @@ export function AddRepairPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || analyzing}>
               {saving ? "Kaydediliyor..." : "Onayla ve Kaydet"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setDraft(emptyDraft)}>
