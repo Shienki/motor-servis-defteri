@@ -39,8 +39,17 @@ export async function analyzeRepairAudio(audioBlob: Blob): Promise<VoiceRepairAn
   });
 
   if (!response.ok) {
-    const data = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(data?.error || "Ses kaydı işlenemedi.");
+    const rawText = await response.text();
+    let errorMessage = "";
+
+    try {
+      const data = JSON.parse(rawText) as { error?: string };
+      errorMessage = data.error ?? "";
+    } catch {
+      errorMessage = rawText;
+    }
+
+    throw new Error(errorMessage || `Ses kaydı işlenemedi. Durum kodu: ${response.status}`);
   }
 
   const parsed = (await response.json()) as {

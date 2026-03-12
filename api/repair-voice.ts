@@ -118,6 +118,6 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     console.error("repair-voice route failed", error);
     const message = error instanceof Error ? error.message : "Ses kaydı işlenemedi.";
-    res.status(502).json({ error: message || "Ses kaydı işlenemedi." });
+    res.status(502).json({ error: `Whisper route hatası: ${message || "Ses kaydı işlenemedi."}` });
   }
 }
