@@ -13,6 +13,7 @@ import { ServiceManagementPage } from "./pages/ServiceManagementPage";
 import { PublicTrackingPage } from "./pages/PublicTrackingPage";
 import { QrHubPage } from "./pages/QrHubPage";
 import { QrRedirectPage } from "./pages/QrRedirectPage";
+import { CameraScannerPage } from "./pages/CameraScannerPage";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/takip/:token" element={<PublicTrackingPage />} />
       <Route element={<AppLayout />}>
         <Route path="/panel" element={<DashboardPage />} />
+        <Route path="/kamera" element={<CameraScannerPage />} />
         <Route path="/hesap" element={<AccountPage />} />
         <Route path="/servis-yonetimi" element={<ServiceManagementPage />} />
         <Route path="/qr-merkezi" element={<QrHubPage />} />

@@ -1,16 +1,16 @@
 import { Camera, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
-import { createMotorcycle, findMotorcycleByPlate, simulatePlateScan } from "../lib/mockApi";
+import { createMotorcycle, findMotorcycleByPlate } from "../lib/mockApi";
 import { canonicalPlate, formatPlateDisplay, lettersAndSpacesOnly, numbersOnly } from "../lib/format";
 import type { Motorcycle } from "../types";
 
 export function NewMotorcyclePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const autoScanStarted = useRef(false);
   const [saving, setSaving] = useState(false);
-  const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState("Önce plakayı yazabilir veya kamerayla okutabilirsin.");
   const [duplicateMotorcycle, setDuplicateMotorcycle] = useState<Motorcycle | null>(null);
   const [form, setForm] = useState({
@@ -23,34 +23,20 @@ export function NewMotorcyclePage() {
   });
 
   useEffect(() => {
-    if (searchParams.get("plaka")) {
+    const plate = searchParams.get("plaka");
+    if (plate) {
       setForm((current) => ({
         ...current,
-        licensePlate: formatPlateDisplay(searchParams.get("plaka") ?? "")
+        licensePlate: formatPlateDisplay(plate)
       }));
+      setMessage(`Plaka hazır: ${formatPlateDisplay(plate)}. Aşağıdan yeni kayıt açabilirsin.`);
     }
 
-    if (searchParams.get("yontem") === "kamera") {
-      void handleScan();
+    if (searchParams.get("yontem") === "kamera" && !plate && !autoScanStarted.current) {
+      autoScanStarted.current = true;
+      navigate("/kamera?hedef=yeni-kayit", { replace: true });
     }
-  }, []);
-
-  async function handleScan() {
-    setScanning(true);
-    const result = await simulatePlateScan();
-    const formatted = formatPlateDisplay(result.rawText);
-    setForm((current) => ({ ...current, licensePlate: formatted }));
-    setScanning(false);
-
-    const existing = await findMotorcycleByPlate(formatted);
-    if (existing) {
-      setMessage(`Bu plaka zaten kayıtlı: ${formatted}. İstersen mevcut kayda gidebilirsin.`);
-      setDuplicateMotorcycle(existing);
-      return;
-    }
-
-    setMessage(`Plaka okundu: ${formatted}. Kayıt yoksa aşağıdan yeni kayıt aç.`);
-  }
+  }, [navigate, searchParams]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -143,9 +129,9 @@ export function NewMotorcyclePage() {
               }))
             }
           />
-          <Button className="gap-2" variant="ghost" onClick={() => void handleScan()}>
+          <Button className="gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit")}>
             <Camera size={18} />
-            {scanning ? "Okunuyor..." : "Kamerayla Tara"}
+            Kamerayla Tara
           </Button>
         </div>
         <p className="mt-4 text-sm text-sand/80">{message}</p>

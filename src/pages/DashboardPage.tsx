@@ -2,7 +2,7 @@ import { Camera, ChevronRight, Search, Settings2, Wallet, Wrench } from "lucide-
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Input, Panel, SectionTitle } from "../components/Ui";
-import { fetchDashboardData, fetchServiceManagementSummary, findMotorcycleByPlate, simulatePlateScan } from "../lib/mockApi";
+import { fetchDashboardData, fetchServiceManagementSummary, findMotorcycleByPlate } from "../lib/mockApi";
 import {
   canonicalPlate,
   formatCurrency,
@@ -23,13 +23,9 @@ export function DashboardPage() {
   const [activeWorkOrders, setActiveWorkOrders] = useState(0);
   const [readyCount, setReadyCount] = useState(0);
   const [message, setMessage] = useState("Plakayı gir veya kamerayla okut.");
-  const [scanBusy, setScanBusy] = useState(false);
 
   async function loadDashboard() {
-    const [dashboard, serviceSummary] = await Promise.all([
-      fetchDashboardData(),
-      fetchServiceManagementSummary()
-    ]);
+    const [dashboard, serviceSummary] = await Promise.all([fetchDashboardData(), fetchServiceManagementSummary()]);
     setMotorcycles(dashboard.motorcycles);
     setRecentRepairs(dashboard.recentRepairs);
     setUnpaidTotal(dashboard.unpaidTotal);
@@ -65,7 +61,6 @@ export function DashboardPage() {
     }
 
     const found = await findMotorcycleByPlate(canonical);
-
     if (found) {
       setMessage(`Kayıt bulundu: ${found.licensePlate}. Motosiklet sayfası açılıyor.`);
       navigate(`/motosiklet/${found.id}`);
@@ -73,16 +68,6 @@ export function DashboardPage() {
     }
 
     setMessage(`"${plate}" için kayıt bulunamadı. Yeni kayıt açman gerekecek.`);
-  }
-
-  async function handleScan() {
-    setScanBusy(true);
-    const result = await simulatePlateScan();
-    setScanBusy(false);
-    const plate = formatPlateDisplay(result.rawText);
-    setQuery(plate);
-    setMessage(`Plaka okundu: ${plate}. Gerekirse düzeltip tekrar ara.`);
-    await handleSearch(plate);
   }
 
   return (
@@ -108,16 +93,16 @@ export function DashboardPage() {
           <Button className="sm:min-w-36" onClick={() => void handleSearch()}>
             Ara
           </Button>
-          <Button className="gap-2 sm:min-w-44" variant="ghost" onClick={() => void handleScan()}>
+          <Button className="gap-2 sm:min-w-44" variant="ghost" onClick={() => navigate("/kamera?hedef=arama")}>
             <Camera size={18} />
-            {scanBusy ? "Okunuyor..." : "Kamerayla Tara"}
+            Kamerayla Tara
           </Button>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Button className="w-full" variant="secondary" onClick={() => navigate("/motosiklet-yeni?yontem=manuel")}>
             Yeni Kayıt Ekle
           </Button>
-          <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/motosiklet-yeni?yontem=kamera")}>
+          <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit")}>
             <Camera size={18} />
             Kamerayla Yeni Kayıt
           </Button>
@@ -141,6 +126,7 @@ export function DashboardPage() {
               const motorcycle = motorcycles.find((item) => item.id === repair.motorcycleId);
               const paidTotal = repair.paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
               const remainingTotal = Math.max(repair.totalCost - paidTotal, 0);
+
               return (
                 <button
                   key={repair.id}

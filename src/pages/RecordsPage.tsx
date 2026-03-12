@@ -17,7 +17,6 @@ export function RecordsPage() {
 
   const filtered = useMemo(() => {
     const normalizedQuery = canonicalPlate(query);
-
     if (!normalizedQuery) {
       return motorcycles;
     }
@@ -46,7 +45,7 @@ export function RecordsPage() {
           <Button variant="secondary" onClick={() => navigate("/motosiklet-yeni?yontem=manuel")}>
             Elle Yeni Kayıt
           </Button>
-          <Button variant="ghost" onClick={() => navigate("/motosiklet-yeni?yontem=kamera")}>
+          <Button variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit")}>
             Kamerayla Kayıt
           </Button>
         </div>
