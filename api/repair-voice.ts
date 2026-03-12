@@ -51,13 +51,21 @@ function buildMultipartBody(audioBytes: Buffer, mimeType: string) {
 }
 
 async function readRawBody(req: any) {
-  const chunks: Buffer[] = [];
+  return await new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
 
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
+    req.on("data", (chunk: Buffer | string) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
 
-  return Buffer.concat(chunks);
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+
+    req.on("error", (error: Error) => {
+      reject(error);
+    });
+  });
 }
 
 export default async function handler(req: any, res: any) {
