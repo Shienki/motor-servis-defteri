@@ -99,17 +99,20 @@ export function MotorcyclePage() {
   const [trackingStatus, setTrackingStatus] = useState<WorkOrderStatus>("received");
   const [trackingNote, setTrackingNote] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
+  const [repairToDelete, setRepairToDelete] = useState<Repair | null>(null);
+  const [deletingRepair, setDeletingRepair] = useState(false);
 
   async function handleDeleteRepair(repair: Repair) {
-    const confirmed = window.confirm("Bu işlemi silmek istediğine emin misin?");
-    if (!confirmed) return;
-
     try {
+      setDeletingRepair(true);
       await deleteRepair(repair.id);
+      setRepairToDelete(null);
       await loadDetail();
     } catch (error) {
       console.error(error);
       window.alert("İşlem silinemedi. Lütfen tekrar dene.");
+    } finally {
+      setDeletingRepair(false);
     }
   }
 
@@ -350,7 +353,43 @@ export function MotorcyclePage() {
   }
 
   return (
-    <div className="space-y-5 px-4 py-5">
+      <div className="space-y-5 px-4 py-5">
+      {repairToDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-warning">İşlem sil</p>
+            <h3 className="mt-2 text-2xl font-bold text-ink">Bu işlem silinsin mi?</h3>
+            <p className="mt-2 text-sm leading-6 text-steel">
+              Bu işlem geri alınamaz. Yanlış açıldıysa veya gereksiz kaydedildiyse silebilirsin.
+            </p>
+            <div className="mt-4 rounded-2xl bg-sand p-4">
+              <p className="text-sm font-semibold text-ink">{getRepairDescriptionLines(repairToDelete.description)[0]}</p>
+              <p className="mt-1 text-sm text-steel">
+                {formatDate(repairToDelete.createdAt)} · {formatCurrency(repairToDelete.totalCost)}
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setRepairToDelete(null)}
+                disabled={deletingRepair}
+              >
+                Vazgeç
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-red-600 text-white hover:bg-red-700"
+                onClick={() => void handleDeleteRepair(repairToDelete)}
+                disabled={deletingRepair}
+              >
+                {deletingRepair ? "Siliniyor..." : "Evet, sil"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -551,7 +590,7 @@ export function MotorcyclePage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => void handleDeleteRepair(repair)}
+                          onClick={() => setRepairToDelete(repair)}
                           className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                         >
                           <Trash2 size={14} />
