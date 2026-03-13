@@ -20,9 +20,52 @@ function parseQrToken(value: string) {
 }
 
 function extractPlateCandidate(rawText: string) {
-  const normalized = rawText.toLocaleUpperCase("tr-TR").replace(/[^A-Z0-9]/g, "");
-  const matches = normalized.match(/\d{1,2}[A-Z]{1,3}\d{2,4}/g) ?? [];
-  const candidate = matches.sort((a, b) => b.length - a.length)[0] ?? "";
+  const upper = rawText
+    .toLocaleUpperCase("tr-TR")
+    .replace(/İ/g, "I")
+    .replace(/[^A-Z0-9\s]/g, " ");
+
+  const ignoredTokens = new Set(["TR", "TURKIYE", "TÜRKİYE", "HONDA", "KONSUK", "CEVIZLI"]);
+  const tokenLines = upper
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/).filter(Boolean).filter((token) => !ignoredTokens.has(token)));
+
+  const candidates = new Set<string>();
+  const compact = upper.replace(/[^A-Z0-9]/g, "");
+
+  for (const match of compact.match(/\d{1,2}[A-Z]{1,3}\d{2,4}/g) ?? []) {
+    candidates.add(match);
+  }
+
+  const tokens = tokenLines.flat();
+  for (let index = 0; index < tokens.length; index += 1) {
+    for (let size = 2; size <= 4; size += 1) {
+      const joined = tokens.slice(index, index + size).join("");
+      if (/^\d{1,2}[A-Z]{1,3}\d{2,4}$/.test(joined)) {
+        candidates.add(joined);
+      }
+    }
+  }
+
+  for (let index = 0; index < tokenLines.length - 1; index += 1) {
+    const top = tokenLines[index];
+    const bottom = tokenLines[index + 1];
+    if (!top.length || !bottom.length) continue;
+
+    const topJoined = top.join("");
+    const bottomJoined = bottom.join("");
+    const joined = `${topJoined}${bottomJoined}`;
+    if (/^\d{1,2}[A-Z]{1,3}\d{2,4}$/.test(joined)) {
+      candidates.add(joined);
+    }
+  }
+
+  const candidate = [...candidates]
+    .sort((left, right) => right.length - left.length)
+    .find((value) => /^\d{1,2}[A-Z]{1,3}\d{2,4}$/.test(value)) ?? "";
+
   return formatPlateDisplay(candidate);
 }
 
@@ -142,10 +185,10 @@ export function CameraScannerPage() {
           return;
         }
 
-        const cropWidth = Math.floor(video.videoWidth * 0.92);
-        const cropHeight = Math.floor(video.videoHeight * 0.34);
+        const cropWidth = Math.floor(video.videoWidth * 0.9);
+        const cropHeight = Math.floor(video.videoHeight * 0.42);
         const offsetX = Math.floor((video.videoWidth - cropWidth) / 2);
-        const offsetY = Math.floor(video.videoHeight * 0.33);
+        const offsetY = Math.floor(video.videoHeight * 0.46);
 
         canvas.width = cropWidth;
         canvas.height = cropHeight;
