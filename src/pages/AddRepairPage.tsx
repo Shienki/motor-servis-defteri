@@ -6,6 +6,29 @@ import { formatCurrency, numbersOnly } from "../lib/format";
 import { analyzeRepairTranscript, createRepairDraft, fetchMotorcycleDetail } from "../lib/mockApi";
 import type { AiRepairDraft, Motorcycle, PaymentStatus } from "../types";
 
+const repairChecklistSections = [
+  {
+    title: "Bakım",
+    items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Genel bakım yapıldı"]
+  },
+  {
+    title: "Fren",
+    items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Fren hidroliği tamamlandı", "Fren kontrol edildi"]
+  },
+  {
+    title: "Aktarma",
+    items: ["Debriyaj balatası değişti", "Varyatör kontrol edildi", "Kayış değişti", "Zincir ayarı yapıldı", "Zincir değişti"]
+  },
+  {
+    title: "Ön Takım",
+    items: ["Baga değişti", "Keçe değişti", "Burç kontrol edildi", "Furç takımı kontrol edildi", "Ön takım kontrol edildi"]
+  },
+  {
+    title: "Elektrik",
+    items: ["Akü değişti", "Far değişti", "Marş kontrol edildi", "Şarj sistemi kontrol edildi"]
+  }
+] as const;
+
 const emptyDraft: AiRepairDraft = {
   description: "",
   laborCost: null,
@@ -96,6 +119,8 @@ export function AddRepairPage() {
   );
   const [heardTranscript, setHeardTranscript] = useState("");
   const [draft, setDraft] = useState<AiRepairDraft>(emptyDraft);
+  const [selectedChecklistItems, setSelectedChecklistItems] = useState<string[]>([]);
+  const [manualDescription, setManualDescription] = useState("");
 
   useEffect(() => {
     fetchMotorcycleDetail(motorcycleId).then((data) => setMotorcycle(data.motorcycle));
@@ -111,9 +136,15 @@ export function AddRepairPage() {
   }, [motorcycleId]);
 
   const totalCost = useMemo(() => (draft.laborCost ?? 0) + (draft.partsCost ?? 0), [draft.laborCost, draft.partsCost]);
+  const combinedDescription = useMemo(() => {
+    const selectedText = selectedChecklistItems.join(", ").trim();
+    const freeText = manualDescription.trim();
+    if (selectedText && freeText) return `${selectedText}. ${freeText}`;
+    return selectedText || freeText;
+  }, [manualDescription, selectedChecklistItems]);
   const assistantSummary = useMemo(
-    () => draft.assistantSummary?.trim() || buildAssistantSummary(draft),
-    [draft]
+    () => draft.assistantSummary?.trim() || buildAssistantSummary({ ...draft, description: combinedDescription }),
+    [combinedDescription, draft]
   );
 
   async function runAnalysis(rawTranscript: string) {
@@ -131,6 +162,7 @@ export function AddRepairPage() {
 
     try {
       const parsedDraft = await analyzeRepairTranscript(transcript);
+      setManualDescription(parsedDraft.description ?? "");
       setDraft({
         ...parsedDraft,
         paidAmount: parsedDraft.paidAmount ?? null,
@@ -222,12 +254,21 @@ export function AddRepairPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    await createRepairDraft(motorcycleId, draft);
+    await createRepairDraft(motorcycleId, {
+      ...draft,
+      description: combinedDescription
+    });
     setDraft(emptyDraft);
     setHeardTranscript("");
+    setManualDescription("");
+    setSelectedChecklistItems([]);
     transcriptRef.current = "";
     setSaving(false);
     navigate(`/motosiklet/${motorcycleId}`);
+  }
+
+  function toggleChecklistItem(item: string) {
+    setSelectedChecklistItems((current) => (current.includes(item) ? current.filter((value) => value !== item) : [...current, item]));
   }
 
   if (!motorcycle) {
@@ -307,11 +348,47 @@ export function AddRepairPage() {
 
         <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
           <div>
+            <Label>Hazır işlem seç</Label>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {repairChecklistSections.map((section) => (
+                <div key={section.title} className="rounded-[24px] border border-slate/10 bg-sand p-4">
+                  <p className="text-sm font-semibold text-ink">{section.title}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {section.items.map((item) => {
+                      const selected = selectedChecklistItems.includes(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => toggleChecklistItem(item)}
+                          className={`rounded-full border px-3 py-2 text-sm transition ${
+                            selected
+                              ? "border-amber bg-amber text-ink shadow-soft"
+                              : "border-slate/10 bg-white text-steel hover:border-amber/50 hover:text-ink"
+                          }`}
+                        >
+                          {selected ? "✓ " : ""}
+                          {item}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <Label>Islem aciklamasi</Label>
+            {selectedChecklistItems.length ? (
+              <div className="mb-3 rounded-2xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-ink">
+                <span className="font-medium">Secilen islemler:</span> {selectedChecklistItems.join(", ")}
+              </div>
+            ) : null}
             <Textarea
-              placeholder="Yapilan islemi detayli yazin"
-              value={draft.description}
-              onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Ek islem aciklamasi veya ustanin serbest notu"
+              value={manualDescription}
+              onChange={(event) => setManualDescription(event.target.value)}
             />
           </div>
 
@@ -427,6 +504,8 @@ export function AddRepairPage() {
               onClick={() => {
                 setDraft(emptyDraft);
                 setHeardTranscript("");
+                setManualDescription("");
+                setSelectedChecklistItems([]);
                 transcriptRef.current = "";
               }}
             >
