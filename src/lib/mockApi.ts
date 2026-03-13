@@ -1557,6 +1557,19 @@ export async function updateRepairDebt(
   return nextRepairs.find((item) => item.id === repairId) ?? null;
 }
 
+export async function deleteRepair(repairId: string) {
+  if (integrationStatus.supabaseReady) {
+    return supabaseApi.deleteRepair(repairId);
+  }
+
+  await wait(150);
+  const activeUserId = getActiveUserId();
+  const repairs = readRepairs();
+  const nextRepairs = repairs.filter((repair) => !(repair.id === repairId && repair.userId === activeUserId));
+  writeRepairs(nextRepairs);
+  return { success: true };
+}
+
 export async function createMotorcycle(input: Omit<Motorcycle, "id" | "createdAt">) {
   if (integrationStatus.supabaseReady) {
     return supabaseApi.createMotorcycle(input);

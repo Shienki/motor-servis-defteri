@@ -1,4 +1,4 @@
-import { Mic, Sparkles, Wand2 } from "lucide-react";
+import { Check, Mic, Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
@@ -145,9 +145,9 @@ export function AddRepairPage() {
 
   const totalCost = useMemo(() => (draft.laborCost ?? 0) + (draft.partsCost ?? 0), [draft.laborCost, draft.partsCost]);
   const combinedDescription = useMemo(() => {
-    const selectedText = selectedChecklistItems.join(", ").trim();
+    const selectedText = selectedChecklistItems.join("\n").trim();
     const freeText = manualDescription.trim();
-    if (selectedText && freeText) return `${selectedText}. ${freeText}`;
+    if (selectedText && freeText) return `${selectedText}\n${freeText}`;
     return selectedText || freeText;
   }, [manualDescription, selectedChecklistItems]);
   const assistantSummary = useMemo(
@@ -521,7 +521,7 @@ export function AddRepairPage() {
             </Button>
             <Link to={`/motosiklet/${motorcycleId}`}>
               <Button className="w-full" type="button" variant="secondary">
-                Iptal
+                Iptal ve geri don
               </Button>
             </Link>
           </div>

@@ -437,6 +437,27 @@ export async function updateRepairDebt(
   return mapRepair(data);
 }
 
+export async function deleteRepair(repairId: string) {
+  const client = requireSupabase();
+  const userId = await getAuthUserId();
+
+  const { error: paymentDeleteError } = await client
+    .from("payment_entries")
+    .delete()
+    .eq("repair_id", repairId)
+    .eq("user_id", userId);
+  if (paymentDeleteError) throw paymentDeleteError;
+
+  const { error } = await client
+    .from("repairs")
+    .delete()
+    .eq("id", repairId)
+    .eq("user_id", userId);
+  if (error) throw error;
+
+  return { success: true };
+}
+
 export async function fetchWorkOrders() {
   const client = requireSupabase();
   const userId = await getAuthUserId();

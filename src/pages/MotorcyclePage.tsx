@@ -1,5 +1,6 @@
 ﻿import { MessageSquareMore, Phone, Plus, QrCode, StickyNote, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import QRCode from "qrcode";
 import { QrPreview } from "../components/QrPreview";
@@ -7,6 +8,7 @@ import { Button, Input, Label, Panel, SectionTitle } from "../components/Ui";
 import {
   addWorkOrderUpdate,
   createTrackingWorkOrder,
+  deleteRepair,
   fetchMotorcycleDetail,
   fetchMotorcycleTrackingCard,
   updateRepairDebt,
@@ -97,6 +99,19 @@ export function MotorcyclePage() {
   const [trackingStatus, setTrackingStatus] = useState<WorkOrderStatus>("received");
   const [trackingNote, setTrackingNote] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
+
+  async function handleDeleteRepair(repair: Repair) {
+    const confirmed = window.confirm("Bu işlemi silmek istediğine emin misin?");
+    if (!confirmed) return;
+
+    try {
+      await deleteRepair(repair.id);
+      await loadDetail();
+    } catch (error) {
+      console.error(error);
+      window.alert("İşlem silinemedi. Lütfen tekrar dene.");
+    }
+  }
 
   async function loadDetail() {
     setLoading(true);
@@ -530,10 +545,20 @@ export function MotorcyclePage() {
                           })()}
                           <p className="mt-1 text-sm text-steel">Tahsil günü: {formatShortDate(repair.paymentDueDate)}</p>
                         </div>
+                      <div className="flex items-center gap-2">
                         <span className={`inline-flex rounded-full px-3 py-1 text-xs ${paymentStatusTone(repair.paymentStatus)}`}>
                           {paymentStatusLabel(repair.paymentStatus)}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteRepair(repair)}
+                          className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          <Trash2 size={14} />
+                          İşlemi sil
+                        </button>
                       </div>
+                    </div>
                       <div className="mt-3 grid gap-2 text-sm text-steel sm:grid-cols-3">
                         <p>Toplam: {formatCurrency(repair.totalCost)}</p>
                         <p>Alınan: {formatCurrency(paid)}</p>
