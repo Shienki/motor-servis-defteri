@@ -1,8 +1,35 @@
-import { getSupabaseServiceClient } from "./_supabase";
-
 const DEFAULT_ADMIN_USERNAME = "shienki";
 const DEFAULT_SESSION_SECRET = "motor-servis-defteri-admin-secret";
 const COOKIE_NAME = "msd_admin_session";
+
+function getEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} tanımlı değil.`);
+  }
+  return value;
+}
+
+function restUrl(path: string) {
+  return `${getEnv("VITE_SUPABASE_URL")}/rest/v1/${path}`;
+}
+
+function serviceHeaders() {
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  return {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json"
+  };
+}
+
+async function fetchRest(path: string) {
+  const response = await fetch(restUrl(path), { headers: serviceHeaders() });
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
 
 function readAdminToken(req: any) {
   const cookieHeader = String(req?.headers?.cookie || "");
@@ -49,35 +76,34 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const client = getSupabaseServiceClient();
-    const [
-      { data: profiles, error: profilesError },
-      { data: motorcycles, error: motorcyclesError },
-      { data: repairs, error: repairsError },
-      { data: workOrders, error: workOrdersError }
-    ] = await Promise.all([
-      client.from("profiles").select("*"),
-      client.from("motorcycles").select("*"),
-      client.from("repairs").select("*, payment_entries(*)"),
-      client.from("work_orders").select("*")
-    ]);
+    const [profiles, motorcycles, repairs, workOrders] = await Promise.all([
+      fetchRest("profiles?select=*"),
+      fetchRest("motorcycles?select=*"),
+      fetchRest("repairs?select=*"),
+      fetchRest("work_orders?select=*"),
+      fetchRest("payment_entries?select=*")
+    ]).then(([profileRows, motorcycleRows, repairRows, workOrderRows, paymentRows]) => {
+      const paymentMap = new Map<string, any[]>();
+      for (const payment of paymentRows ?? []) {
+        const list = paymentMap.get(payment.repair_id) ?? [];
+        list.push(payment);
+        paymentMap.set(payment.repair_id, list);
+      }
 
-    if (profilesError || motorcyclesError || repairsError || workOrdersError) {
-      throw profilesError || motorcyclesError || repairsError || workOrdersError;
-    }
+      const normalizedRepairs = (repairRows ?? []).map((item: any) => {
+        const entries = paymentMap.get(item.id) ?? [];
+        const paid = entries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
+        return {
+          userId: item.user_id,
+          remaining: Math.max(Number(item.total_cost ?? 0) - paid, 0)
+        };
+      });
 
-    const normalizedRepairs = (repairs ?? []).map((item: any) => {
-      const entries = item.payment_entries ?? [];
-      const paid = entries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
-      const remaining = Math.max(Number(item.total_cost ?? 0) - paid, 0);
-      return {
-        userId: item.user_id,
-        remaining
-      };
+      return [profileRows ?? [], motorcycleRows ?? [], normalizedRepairs, workOrderRows ?? []];
     });
 
     const services = (profiles ?? []).map((row: any) => {
-      const userRepairs = normalizedRepairs.filter((item) => item.userId === row.id);
+      const userRepairs = (repairs ?? []).filter((item: any) => item.userId === row.id);
       const userWorkOrders = (workOrders ?? []).filter((item: any) => item.user_id === row.id);
 
       return {
@@ -88,8 +114,8 @@ export default async function handler(req: any, res: any) {
         motorcycleCount: (motorcycles ?? []).filter((item: any) => item.user_id === row.id).length,
         activeWorkOrderCount: userWorkOrders.filter((item: any) => item.status !== "delivered").length,
         readyCount: userWorkOrders.filter((item: any) => item.status === "ready").length,
-        unpaidRepairCount: userRepairs.filter((item) => item.remaining > 0).length,
-        unpaidTotal: userRepairs.reduce((sum, item) => sum + item.remaining, 0),
+        unpaidRepairCount: userRepairs.filter((item: any) => item.remaining > 0).length,
+        unpaidTotal: userRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0),
         subscriptionStatus: "Aktif"
       };
     });
@@ -101,7 +127,7 @@ export default async function handler(req: any, res: any) {
         motorcycleCount: (motorcycles ?? []).length,
         activeWorkOrderCount: (workOrders ?? []).filter((item: any) => item.status !== "delivered").length,
         readyCount: (workOrders ?? []).filter((item: any) => item.status === "ready").length,
-        unpaidTotal: services.reduce((sum, item) => sum + item.unpaidTotal, 0)
+        unpaidTotal: services.reduce((sum: number, item: any) => sum + item.unpaidTotal, 0)
       },
       services
     });
