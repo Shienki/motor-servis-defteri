@@ -1,5 +1,40 @@
-import { requireAdmin } from "./_adminAuth";
 import { getSupabaseServiceClient } from "./_supabase";
+
+const DEFAULT_ADMIN_USERNAME = "shienki";
+const DEFAULT_SESSION_SECRET = "motor-servis-defteri-admin-secret";
+const COOKIE_NAME = "msd_admin_session";
+
+function readAdminToken(req: any) {
+  const cookieHeader = String(req?.headers?.cookie || "");
+  const cookies = cookieHeader
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  for (const cookie of cookies) {
+    const [name, ...rest] = cookie.split("=");
+    if (name === COOKIE_NAME) {
+      return decodeURIComponent(rest.join("="));
+    }
+  }
+
+  return "";
+}
+
+function requireAdmin(req: any) {
+  const expected = `admin:${process.env.ADMIN_SESSION_SECRET || DEFAULT_SESSION_SECRET}`;
+  const token = readAdminToken(req);
+
+  if (token !== expected) {
+    return null;
+  }
+
+  const username = String(process.env.ADMIN_USERNAME || DEFAULT_ADMIN_USERNAME).trim().toLowerCase();
+  return {
+    username,
+    displayName: username === "shienki" ? "Shienki" : username
+  };
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
@@ -60,10 +95,7 @@ export default async function handler(req: any, res: any) {
     });
 
     res.status(200).json({
-      systemAdmin: {
-        username: adminSession.username,
-        displayName: adminSession.username === "shienki" ? "Shienki" : adminSession.username
-      },
+      systemAdmin: adminSession,
       totals: {
         serviceCount: services.length,
         motorcycleCount: (motorcycles ?? []).length,

@@ -1,4 +1,30 @@
-import { clearAdminCookie, createAdminToken, getAdminCredentials, setAdminCookie } from "./_adminAuth";
+const DEFAULT_ADMIN_USERNAME = "shienki";
+const DEFAULT_ADMIN_PASSWORD = "Arcelik123.";
+const DEFAULT_SESSION_SECRET = "motor-servis-defteri-admin-secret";
+const COOKIE_NAME = "msd_admin_session";
+
+function getAdminCredentials() {
+  return {
+    username: String(process.env.ADMIN_USERNAME || DEFAULT_ADMIN_USERNAME).trim().toLowerCase(),
+    password: String(process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD)
+  };
+}
+
+function getSessionToken() {
+  return `admin:${process.env.ADMIN_SESSION_SECRET || DEFAULT_SESSION_SECRET}`;
+}
+
+function setAdminCookie(res: any, rememberMe = true) {
+  const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
+  res.setHeader(
+    "Set-Cookie",
+    `${COOKIE_NAME}=${encodeURIComponent(getSessionToken())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Secure`
+  );
+}
+
+function clearAdminCookie(res: any) {
+  res.setHeader("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -18,8 +44,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const token = createAdminToken(admin.username);
-    setAdminCookie(res, token, Boolean(rememberMe));
+    setAdminCookie(res, Boolean(rememberMe));
 
     res.status(200).json({
       success: true,
