@@ -8,24 +8,32 @@ import type { AiRepairDraft, Motorcycle, PaymentStatus } from "../types";
 
 const repairChecklistSections = [
   {
-    title: "Bakım",
-    items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Genel bakım yapıldı"]
+    title: "Periyodik Bakım",
+    items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Bakım yapıldı"]
   },
   {
     title: "Fren",
-    items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Fren hidroliği tamamlandı", "Fren kontrol edildi"]
+    items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Fren hidroliği değişti", "Disk kontrol edildi"]
   },
   {
     title: "Aktarma",
-    items: ["Debriyaj balatası değişti", "Varyatör kontrol edildi", "Kayış değişti", "Zincir ayarı yapıldı", "Zincir değişti"]
+    items: ["Debriyaj balatası değişti", "Debriyaj seti değişti", "Varyatör seti değişti", "Kayış değişti", "Zincir ayarı yapıldı", "Zincir değişti"]
   },
   {
     title: "Ön Takım",
-    items: ["Baga değişti", "Keçe değişti", "Burç kontrol edildi", "Furç takımı kontrol edildi", "Ön takım kontrol edildi"]
+    items: ["Baga değişti", "Keçe değişti", "Burç değişti", "Rulman değişti", "Amortisör kontrol edildi", "Ön takım kontrol edildi"]
   },
   {
     title: "Elektrik",
-    items: ["Akü değişti", "Far değişti", "Marş kontrol edildi", "Şarj sistemi kontrol edildi"]
+    items: ["Akü değişti", "Akü şarj edildi", "Far ampulü değişti", "Konjektör değişti", "Sigorta değişti", "Marş motoru kontrol edildi"]
+  },
+  {
+    title: "Motor",
+    items: ["Subap ayarı yapıldı", "Enjektör temizlendi", "Karbüratör temizlendi", "Conta değişti", "Segman değişti"]
+  },
+  {
+    title: "Lastik",
+    items: ["Ön lastik değişti", "Arka lastik değişti", "Lastik tamiri yapıldı", "Hava basıldı"]
   }
 ] as const;
 
