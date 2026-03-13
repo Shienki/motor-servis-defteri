@@ -64,6 +64,28 @@ function getRemainingAmount(repair: Repair) {
   return Math.max(repair.totalCost - getPaidAmount(repair), 0);
 }
 
+function getRepairDescriptionLines(description: string) {
+  const newlineLines = description
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (newlineLines.length > 1) {
+    return newlineLines;
+  }
+
+  const commaLines = description
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (commaLines.length >= 3) {
+    return commaLines;
+  }
+
+  return [description.trim()].filter(Boolean);
+}
+
 export function MotorcyclePage() {
   const { motorcycleId = "" } = useParams();
   const [loading, setLoading] = useState(true);
@@ -491,7 +513,21 @@ export function MotorcyclePage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-ink">{repair.description}</p>
+                          {(() => {
+                            const descriptionLines = getRepairDescriptionLines(repair.description);
+                            return descriptionLines.length === 1 ? (
+                              <p className="font-semibold text-ink">{descriptionLines[0]}</p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {descriptionLines.map((line, index) => (
+                                  <li key={`${repair.id}-debt-${index}`} className="flex items-start gap-2 text-ink">
+                                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                    <span className="font-medium">{line}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          })()}
                           <p className="mt-1 text-sm text-steel">Tahsil günü: {formatShortDate(repair.paymentDueDate)}</p>
                         </div>
                         <span className={`inline-flex rounded-full px-3 py-1 text-xs ${paymentStatusTone(repair.paymentStatus)}`}>
@@ -614,10 +650,30 @@ export function MotorcyclePage() {
                 <article key={repair.id} className="rounded-3xl border border-slate/10 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <div className="flex items-center gap-2 text-ink">
-                        <Wrench size={16} />
-                        <p className="font-semibold">{repair.description}</p>
-                      </div>
+                      {(() => {
+                        const descriptionLines = getRepairDescriptionLines(repair.description);
+                        return descriptionLines.length === 1 ? (
+                          <div className="flex items-center gap-2 text-ink">
+                            <Wrench size={16} />
+                            <p className="font-semibold">{descriptionLines[0]}</p>
+                          </div>
+                        ) : (
+                          <div className="text-ink">
+                            <div className="flex items-center gap-2">
+                              <Wrench size={16} />
+                              <p className="font-semibold">Yapılan işlemler</p>
+                            </div>
+                            <ul className="mt-2 space-y-1">
+                              {descriptionLines.map((line, index) => (
+                                <li key={`${repair.id}-history-${index}`} className="flex items-start gap-2 text-sm">
+                                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                  <span className="font-medium">{line}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })()}
                       <p className="mt-2 text-sm text-steel">{repair.notes}</p>
                     </div>
                     <span className={`inline-flex rounded-full px-3 py-1 text-xs ${paymentStatusTone(repair.paymentStatus)}`}>
