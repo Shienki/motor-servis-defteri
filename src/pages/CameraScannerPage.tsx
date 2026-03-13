@@ -87,6 +87,7 @@ export function CameraScannerPage() {
   const [cameraReady, setCameraReady] = useState(false);
   const [lastDetected, setLastDetected] = useState("");
   const [supportNote, setSupportNote] = useState("");
+  const [pendingPlate, setPendingPlate] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -206,15 +207,8 @@ export function CameraScannerPage() {
 
         solvedRef.current = true;
         setLastDetected(plate);
-        setStatus(`Plaka okundu: ${plate}`);
-
-        const existing = await findMotorcycleByPlate(plate);
-        if (existing) {
-          navigate(`/motosiklet/${existing.id}`, { replace: true });
-          return;
-        }
-
-        navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(plate)}&yontem=kamera`, { replace: true });
+        setPendingPlate(plate);
+        setStatus(`Plaka okundu: ${plate}. Devam etmeden önce kontrol et.`);
       } catch {
         setSupportNote("Plaka okunamadıysa kamerayı biraz daha yaklaştırıp sabit tut.");
       } finally {
@@ -225,8 +219,52 @@ export function CameraScannerPage() {
     return () => window.clearInterval(interval);
   }, [cameraReady, navigate]);
 
+  async function confirmDetectedPlate() {
+    if (!pendingPlate.trim()) return;
+
+    const plate = formatPlateDisplay(pendingPlate);
+    const existing = await findMotorcycleByPlate(plate);
+    if (existing) {
+      navigate(`/motosiklet/${existing.id}`, { replace: true });
+      return;
+    }
+
+    navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(plate)}&yontem=kamera`, { replace: true });
+  }
+
+  function resetPlateScan() {
+    setPendingPlate("");
+    setLastDetected("");
+    solvedRef.current = false;
+    setStatus(isNewRecordFlow ? "Plaka bekleniyor." : "QR veya plaka bekleniyor.");
+  }
+
   return (
     <div className="space-y-5 px-4 py-5">
+      {pendingPlate ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-warning">Plaka kontrolü</p>
+            <h3 className="mt-2 text-2xl font-bold text-ink">Okunan plaka doğru mu?</h3>
+            <p className="mt-2 text-sm leading-6 text-steel">
+              Kamera harf veya rakamı yanlış okuyabilir. Devam etmeden önce plakayı kontrol et.
+            </p>
+            <input
+              value={pendingPlate}
+              onChange={(event) => setPendingPlate(formatPlateDisplay(event.target.value))}
+              className="mt-4 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-lg font-semibold tracking-[0.12em] text-ink outline-none ring-0"
+            />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Button type="button" variant="secondary" onClick={resetPlateScan}>
+                Tekrar tara
+              </Button>
+              <Button type="button" onClick={() => void confirmDetectedPlate()}>
+                Onayla ve devam et
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Panel className="bg-ink text-white">
         <SectionTitle
           eyebrow="Canlı kamera"
