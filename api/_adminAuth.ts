@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { createHmac } from "crypto";
 
 const DEFAULT_ADMIN_USERNAME = "shienki";
 const DEFAULT_ADMIN_PASSWORD = "Arcelik123.";
@@ -12,6 +12,16 @@ function getAdminSecret() {
   return getEnv("ADMIN_SESSION_SECRET", "motor-servis-defteri-admin-secret");
 }
 
+function toBase64Url(value: string) {
+  return Buffer.from(value, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${padding}`, "base64").toString("utf8");
+}
+
 export function getAdminCredentials() {
   return {
     username: getEnv("ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME).trim().toLowerCase(),
@@ -20,7 +30,7 @@ export function getAdminCredentials() {
 }
 
 function sign(value: string) {
-  return crypto.createHmac("sha256", getAdminSecret()).update(value).digest("hex");
+  return createHmac("sha256", getAdminSecret()).update(value).digest("hex");
 }
 
 export function createAdminToken(username: string) {
@@ -28,7 +38,7 @@ export function createAdminToken(username: string) {
     username,
     exp: Date.now() + 1000 * 60 * 60 * 24 * 30
   });
-  const encoded = Buffer.from(payload, "utf8").toString("base64url");
+  const encoded = toBase64Url(payload);
   return `${encoded}.${sign(encoded)}`;
 }
 
@@ -39,7 +49,7 @@ export function verifyAdminToken(token: string) {
   if (sign(encoded) !== signature) return null;
 
   try {
-    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as {
+    const payload = JSON.parse(fromBase64Url(encoded)) as {
       username: string;
       exp: number;
     };
