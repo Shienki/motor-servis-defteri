@@ -37,6 +37,37 @@ const repairChecklistSections = [
   }
 ] as const;
 
+const refinedRepairChecklistSections = [
+  {
+    title: "Periyodik Bakım",
+    items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Yağ bakımı yapıldı"]
+  },
+  {
+    title: "Fren",
+    items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Fren hidroliği değişti", "Disk değişti"]
+  },
+  {
+    title: "Aktarma",
+    items: ["Debriyaj balatası değişti", "Debriyaj seti değişti", "Varyatör seti değişti", "Kayış değişti", "Zincir değişti", "Dişli seti değişti"]
+  },
+  {
+    title: "Süspansiyon",
+    items: ["Keçe değişti", "Burç değişti", "Rulman değişti", "Amortisör değişti", "Gidon bilyası değişti"]
+  },
+  {
+    title: "Elektrik",
+    items: ["Akü değişti", "Far ampulü değişti", "Konjektör değişti", "Sigorta değişti", "Marş kömürü değişti"]
+  },
+  {
+    title: "Motor",
+    items: ["Subap ayarı yapıldı", "Enjektör temizlendi", "Karbüratör temizlendi", "Conta değişti", "Segman değişti"]
+  },
+  {
+    title: "Lastik",
+    items: ["Ön lastik değişti", "Arka lastik değişti", "Lastik tamiri yapıldı", "Sibop değişti"]
+  }
+] as const;
+
 const emptyDraft: AiRepairDraft = {
   description: "",
   laborCost: null,
@@ -358,7 +389,7 @@ export function AddRepairPage() {
           <div>
             <Label>Hazır işlem seç</Label>
             <div className="grid gap-4 lg:grid-cols-2">
-              {repairChecklistSections.map((section) => (
+              {refinedRepairChecklistSections.map((section) => (
                 <div key={section.title} className="rounded-[24px] border border-slate/10 bg-sand p-4">
                   <p className="text-sm font-semibold text-ink">{section.title}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -387,12 +418,20 @@ export function AddRepairPage() {
           </div>
 
           <div>
-            <Label>Islem aciklamasi</Label>
-            {selectedChecklistItems.length ? (
-              <div className="mb-3 rounded-2xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-ink">
-                <span className="font-medium">Secilen islemler:</span> {selectedChecklistItems.join(", ")}
-              </div>
-            ) : null}
+              <Label>Islem aciklamasi</Label>
+              {selectedChecklistItems.length ? (
+                <div className="mb-3 rounded-2xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-ink">
+                  <p className="font-medium">Secilen islemler:</p>
+                  <ul className="mt-2 space-y-1">
+                    {selectedChecklistItems.map((item) => (
+                      <li key={`selected-${item}`} className="flex items-start gap-2">
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             <Textarea
               placeholder="Ek islem aciklamasi veya ustanin serbest notu"
               value={manualDescription}
