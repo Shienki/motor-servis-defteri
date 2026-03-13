@@ -83,6 +83,7 @@ export function PublicTrackingPage() {
           <SectionTitle
             eyebrow={data.shopName}
             title={formatPlateDisplay(data.motorcycle.licensePlate)}
+            titleClassName="text-white"
             description="Motorunuzun güncel servis durumunu buradan takip edebilirsiniz."
           />
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
