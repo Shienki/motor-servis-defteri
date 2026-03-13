@@ -68,6 +68,59 @@ const refinedRepairChecklistSections = [
   }
 ] as const;
 
+const repairTemplates = {
+  scooter: {
+    label: "Scooter",
+    sections: [
+      {
+        title: "Periyodik Bakım",
+        items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Yağ bakımı yapıldı"]
+      },
+      {
+        title: "Aktarma",
+        items: ["Debriyaj balatası değişti", "Debriyaj seti değişti", "Varyatör seti değişti", "Kayış değişti"]
+      },
+      {
+        title: "Fren",
+        items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Fren hidroliği değişti"]
+      },
+      {
+        title: "Elektrik",
+        items: ["Akü değişti", "Far ampulü değişti", "Konjektör değişti", "Marş kömürü değişti"]
+      }
+    ]
+  },
+  motorcycle: {
+    label: "Motosiklet",
+    sections: [
+      {
+        title: "Periyodik Bakım",
+        items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Yağ bakımı yapıldı"]
+      },
+      {
+        title: "Aktarma",
+        items: ["Debriyaj seti değişti", "Zincir değişti", "Dişli seti değişti"]
+      },
+      {
+        title: "Süspansiyon",
+        items: ["Keçe değişti", "Burç değişti", "Rulman değişti", "Amortisör değişti", "Gidon bilyası değişti"]
+      },
+      {
+        title: "Fren",
+        items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Disk değişti"]
+      },
+      {
+        title: "Motor",
+        items: ["Subap ayarı yapıldı", "Enjektör temizlendi", "Karbüratör temizlendi", "Conta değişti", "Segman değişti"]
+      },
+      {
+        title: "Lastik",
+        items: ["Ön lastik değişti", "Arka lastik değişti", "Lastik tamiri yapıldı", "Sibop değişti"]
+      }
+    ]
+  }
+} as const;
+
 const emptyDraft: AiRepairDraft = {
   description: "",
   laborCost: null,
@@ -158,6 +211,7 @@ export function AddRepairPage() {
   );
   const [heardTranscript, setHeardTranscript] = useState("");
   const [draft, setDraft] = useState<AiRepairDraft>(emptyDraft);
+  const [repairTemplate, setRepairTemplate] = useState<keyof typeof repairTemplates>("scooter");
   const [selectedChecklistItems, setSelectedChecklistItems] = useState<string[]>([]);
   const [manualDescription, setManualDescription] = useState("");
 
@@ -185,6 +239,7 @@ export function AddRepairPage() {
     () => draft.assistantSummary?.trim() || buildAssistantSummary({ ...draft, description: combinedDescription }),
     [combinedDescription, draft]
   );
+  const visibleChecklistSections = repairTemplates[repairTemplate].sections;
 
   async function runAnalysis(rawTranscript: string) {
     const transcript = normalizeRecognizedTranscript(rawTranscript);
@@ -310,6 +365,11 @@ export function AddRepairPage() {
     setSelectedChecklistItems((current) => (current.includes(item) ? current.filter((value) => value !== item) : [...current, item]));
   }
 
+  function changeRepairTemplate(nextTemplate: keyof typeof repairTemplates) {
+    setRepairTemplate(nextTemplate);
+    setSelectedChecklistItems([]);
+  }
+
   if (!motorcycle) {
     return (
       <div className="px-4 py-5">
@@ -388,8 +448,25 @@ export function AddRepairPage() {
         <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
           <div>
             <Label>Hazır işlem seç</Label>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {Object.entries(repairTemplates).map(([value, template]) => {
+                const active = repairTemplate === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => changeRepairTemplate(value as keyof typeof repairTemplates)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      active ? "bg-ink text-white shadow-soft" : "bg-sand text-steel ring-1 ring-slate/10 hover:ring-amber/40"
+                    }`}
+                  >
+                    {template.label}
+                  </button>
+                );
+              })}
+            </div>
             <div className="grid gap-4 lg:grid-cols-2">
-              {refinedRepairChecklistSections.map((section) => (
+              {visibleChecklistSections.map((section) => (
                 <div key={section.title} className="rounded-[24px] border border-slate/10 bg-sand p-4">
                   <p className="text-sm font-semibold text-ink">{section.title}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
