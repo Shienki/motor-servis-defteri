@@ -56,6 +56,7 @@ type AuthState = {
 
 type AdminAuthState = {
   username: string;
+  displayName: string;
   rememberMe: boolean;
 };
 
@@ -625,7 +626,7 @@ export async function signOutUser() {
 
 export function hasSystemAdminSession() {
   const session = getStoredAdminAuth();
-  return Boolean(session?.username && session.username === systemAdminConfig.username);
+  return Boolean(session?.username);
 }
 
 export async function signInSystemAdmin(input: {
@@ -633,6 +634,30 @@ export async function signInSystemAdmin(input: {
   password: string;
   rememberMe: boolean;
 }) {
+  if (typeof window !== "undefined") {
+    try {
+      const response = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(input)
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        writeStoredAdminAuth({
+          username: payload.admin.username,
+          displayName: payload.admin.displayName,
+          rememberMe: input.rememberMe
+        });
+        return payload;
+      }
+    } catch {
+      // Fallback to local mock logic
+    }
+  }
+
   await wait(140);
   const username = clampText(input.username, 50).toLowerCase();
   const password = clampText(input.password, 120);
@@ -641,7 +666,7 @@ export async function signInSystemAdmin(input: {
     return { success: false };
   }
 
-  writeStoredAdminAuth({ username, rememberMe: input.rememberMe });
+  writeStoredAdminAuth({ username, displayName: systemAdminConfig.displayName, rememberMe: input.rememberMe });
   return {
     success: true,
     admin: {
@@ -652,6 +677,13 @@ export async function signInSystemAdmin(input: {
 }
 
 export async function signOutSystemAdmin() {
+  if (typeof window !== "undefined") {
+    try {
+      await fetch("/api/admin-logout", { method: "POST" });
+    } catch {
+      // noop
+    }
+  }
   await wait(20);
   writeStoredAdminAuth(null);
 }
@@ -915,7 +947,19 @@ export async function resolveQrRedirect(token: string) {
 
 export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
   if (integrationStatus.supabaseReady) {
-    return supabaseApi.fetchSystemAdminOverview();
+    const response = await fetch("/api/admin-overview", {
+      method: "GET",
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        writeStoredAdminAuth(null);
+      }
+      throw new Error("Yönetici paneli verileri alınamadı.");
+    }
+
+    return response.json();
   }
   await wait();
   const users = readUsers();

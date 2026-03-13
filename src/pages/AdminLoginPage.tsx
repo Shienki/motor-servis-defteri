@@ -27,7 +27,7 @@ export function AdminLoginPage() {
       >
         <div>
           <Label>Yönetici Kullanıcı Adı</Label>
-          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="yonetici" required />
+          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Shienki" required />
         </div>
 
         <div>

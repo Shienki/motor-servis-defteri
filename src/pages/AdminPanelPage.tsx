@@ -9,9 +9,14 @@ import type { SystemAdminOverview } from "../types";
 export function AdminPanelPage() {
   const navigate = useNavigate();
   const [overview, setOverview] = useState<SystemAdminOverview | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchSystemAdminOverview().then(setOverview);
+    fetchSystemAdminOverview()
+      .then(setOverview)
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Yönetici paneli verileri alınamadı.");
+      });
   }, []);
 
   if (!hasSystemAdminSession()) {
@@ -41,6 +46,12 @@ export function AdminPanelPage() {
             </Button>
           </div>
         </Panel>
+
+        {error ? (
+          <Panel>
+            <SectionTitle eyebrow="Bağlantı" title="Yönetici paneli yüklenemedi" description={error} />
+          </Panel>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Panel>
