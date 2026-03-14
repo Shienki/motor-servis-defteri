@@ -65,7 +65,7 @@ export function CameraScannerPage() {
   }, []);
 
   useEffect(() => {
-    if (!cameraReady || pendingQr) {
+    if (!cameraReady || pendingQr || showManualFallback) {
       return;
     }
 
@@ -90,7 +90,6 @@ export function CameraScannerPage() {
 
         if (mode === "customer-track") {
           setStatus("QR okundu. Kayıt kontrol ediliyor.");
-          setPendingQr(rawValue);
           setBusy(true);
           try {
             const motorcycle = await findMotorcycleByOfficialQr(rawValue);
@@ -101,8 +100,6 @@ export function CameraScannerPage() {
 
             setShowManualFallback(true);
             setStatus("Kayıtlı QR bulunamadı. Lütfen plakanızı elle giriniz.");
-            setPendingQr("");
-            solvedRef.current = false;
           } finally {
             setBusy(false);
           }
@@ -117,7 +114,7 @@ export function CameraScannerPage() {
     }, 350);
 
     return () => window.clearInterval(interval);
-  }, [cameraReady, pendingQr]);
+  }, [cameraReady, mode, navigate, pendingQr, showManualFallback]);
 
   async function continueWithQr() {
     if (!pendingQr || busy) return;
