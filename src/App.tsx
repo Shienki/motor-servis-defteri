@@ -19,8 +19,11 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/giris" replace />} />
       <Route path="/giris" element={<LoginPage />} />
-      <Route path="/yonetici/giris" element={<AdminLoginPage />} />
-      <Route path="/yonetici/panel" element={<AdminPanelPage />} />
+      <Route path="/admin" element={<AdminLoginPage />} />
+      <Route path="/admin/panel" element={<AdminPanelPage />} />
+      <Route path="/yonetici" element={<Navigate to="/admin" replace />} />
+      <Route path="/yonetici/giris" element={<Navigate to="/admin" replace />} />
+      <Route path="/yonetici/panel" element={<Navigate to="/admin/panel" replace />} />
       <Route path="/kayit" element={<RegisterPage />} />
       <Route path="/takip/:token" element={<PublicTrackingPage />} />
       <Route path="/takip-kamera" element={<CameraScannerPage />} />

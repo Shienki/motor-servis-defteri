@@ -13,7 +13,10 @@ type BeforeInstallPromptEvent = Event & {
 
 function isStandalone() {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
 }
 
 export function LoginPage() {
@@ -82,7 +85,8 @@ export function LoginPage() {
                   <span>iPhone için ana ekrana ekle</span>
                 </div>
                 <p className="mt-2 text-sm text-steel">
-                  Safari&apos;de paylaş butonuna bas, sonra <span className="font-semibold text-ink">Ana Ekrana Ekle</span> seçeneğini seç.
+                  Safari&apos;de paylaş butonuna bas, sonra <span className="font-semibold text-ink">Ana Ekrana Ekle</span>{" "}
+                  seçeneğini seç.
                 </p>
               </div>
 
@@ -141,13 +145,6 @@ export function LoginPage() {
               Servisiniz için yeni hesap mı açacaksınız?{" "}
               <Link className="font-semibold text-warning" to="/kayit">
                 İşletme hesabı oluştur
-              </Link>
-            </p>
-
-            <p className="text-center text-sm text-steel">
-              Yönetici girişi için{" "}
-              <Link className="font-semibold text-ink" to="/yonetici/giris">
-                buraya geç
               </Link>
             </p>
           </form>
