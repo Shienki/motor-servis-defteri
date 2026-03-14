@@ -1,5 +1,3 @@
-import { getSupabaseServiceClient } from "./_supabase";
-
 type WorkOrderRow = {
   id: string;
   motorcycle_id: string;
@@ -37,19 +35,6 @@ async function fetchRest(path: string) {
     throw new Error(await response.text());
   }
   return response.json();
-}
-
-async function fetchShopPhone(userId: string) {
-  try {
-    const client = getSupabaseServiceClient();
-    const { data, error } = await client.auth.admin.getUserById(userId);
-    if (error || !data.user) {
-      return "";
-    }
-    return String(data.user.user_metadata.phone ?? "").trim();
-  } catch {
-    return "";
-  }
 }
 
 function defaultCustomerStatusNote(status: string | null) {
@@ -122,15 +107,14 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const [workOrders, repairRows, profileRows, shopPhone] = await Promise.all([
+    const [workOrders, repairRows, profileRows] = await Promise.all([
       fetchRest(
         `work_orders?motorcycle_id=eq.${encodeURIComponent(
           motorcycle.id
         )}&status=neq.delivered&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&order=updated_at.desc`
       ),
       fetchRest(`repairs?motorcycle_id=eq.${encodeURIComponent(motorcycle.id)}&select=*&order=created_at.desc`),
-      fetchRest(`profiles?id=eq.${encodeURIComponent(motorcycle.user_id)}&select=shop_name&limit=1`),
-      fetchShopPhone(motorcycle.user_id)
+      fetchRest(`profiles?id=eq.${encodeURIComponent(motorcycle.user_id)}&select=shop_name&limit=1`)
     ]);
 
     const workOrder: WorkOrderRow | null = workOrders[0] ?? null;
@@ -158,7 +142,7 @@ export default async function handler(req: any, res: any) {
 
     res.status(200).json({
       shopName: profileRows?.[0]?.shop_name ?? "Motor Servis",
-      shopPhone,
+      shopPhone: "",
       motorcycle: {
         licensePlate: motorcycle.license_plate,
         model: motorcycle.model
