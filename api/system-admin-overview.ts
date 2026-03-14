@@ -54,6 +54,11 @@ async function requestJson(path: string) {
   return response.json();
 }
 
+function getLatestIso(values: Array<string | null | undefined>) {
+  const filtered = values.filter((value): value is string => Boolean(value)).sort((a, b) => b.localeCompare(a));
+  return filtered[0] ?? null;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
@@ -88,18 +93,25 @@ export default async function handler(req: any, res: any) {
       const entries = paymentMap.get(item.id) ?? [];
       const paid = entries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
       return {
+        id: item.id,
         userId: item.user_id,
+        createdAt: item.created_at,
         remaining: Math.max(Number(item.total_cost ?? 0) - paid, 0)
       };
     });
 
     const services = (profiles ?? []).map((row: any) => {
+      const userMotorcycles = (motorcycles ?? []).filter((item: any) => item.user_id === row.id);
       const userRepairs = normalizedRepairs.filter((item: any) => item.userId === row.id);
       const userWorkOrders = (workOrders ?? []).filter((item: any) => item.user_id === row.id);
+      const latestWorkOrder = [...userWorkOrders].sort((a: any, b: any) =>
+        String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? ""))
+      )[0];
+
       const qrBindings = userWorkOrders
         .filter((item: any) => item.qr_value)
         .map((item: any) => {
-          const motorcycle = (motorcycles ?? []).find((motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id);
+          const motorcycle = userMotorcycles.find((motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id);
           return {
             workOrderId: item.id,
             motorcycleId: item.motorcycle_id,
@@ -111,17 +123,44 @@ export default async function handler(req: any, res: any) {
         })
         .sort((a: any, b: any) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 
+      const latestMotorcycles = [...userMotorcycles]
+        .sort((a: any, b: any) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+        .slice(0, 3)
+        .map((item: any) => ({
+          id: item.id,
+          licensePlate: item.license_plate,
+          model: item.model ?? "Model girilmedi",
+          customerName: item.customer_name ?? "",
+          createdAt: item.created_at
+        }));
+
+      const customerKeys = new Set(
+        userMotorcycles
+          .map((item: any) => `${String(item.customer_name ?? "").trim()}|${String(item.phone ?? "").trim()}`)
+          .filter((item: string) => item !== "|")
+      );
+
       return {
         id: row.id,
-        shopName: row.shop_name,
-        ownerName: row.name,
+        shopName: row.shop_name ?? "Servis adı girilmedi",
+        ownerName: row.name ?? "Usta adı girilmedi",
         username: row.username || "",
-        motorcycleCount: (motorcycles ?? []).filter((item: any) => item.user_id === row.id).length,
+        phone: row.phone ?? "",
+        customerCount: customerKeys.size,
+        motorcycleCount: userMotorcycles.length,
         activeWorkOrderCount: userWorkOrders.filter((item: any) => item.status !== "delivered").length,
         readyCount: userWorkOrders.filter((item: any) => item.status === "ready").length,
         unpaidRepairCount: userRepairs.filter((item: any) => item.remaining > 0).length,
         unpaidTotal: userRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0),
         subscriptionStatus: "Aktif",
+        lastActivityAt: getLatestIso([
+          ...userMotorcycles.map((item: any) => item.created_at),
+          ...userRepairs.map((item: any) => item.createdAt),
+          ...userWorkOrders.map((item: any) => item.updated_at)
+        ]),
+        latestComplaint: latestWorkOrder?.complaint ?? null,
+        latestWorkOrderStatus: latestWorkOrder?.status ?? null,
+        latestMotorcycles,
         officialQrCount: qrBindings.length,
         officialQrBindings: qrBindings
       };
@@ -137,7 +176,10 @@ export default async function handler(req: any, res: any) {
         motorcycleCount: (motorcycles ?? []).length,
         activeWorkOrderCount: (workOrders ?? []).filter((item: any) => item.status !== "delivered").length,
         readyCount: (workOrders ?? []).filter((item: any) => item.status === "ready").length,
-        unpaidTotal: services.reduce((sum: number, item: any) => sum + item.unpaidTotal, 0)
+        unpaidTotal: services.reduce((sum: number, item: any) => sum + item.unpaidTotal, 0),
+        officialQrCount: services.reduce((sum: number, item: any) => sum + item.officialQrCount, 0),
+        servicesWithDebtCount: services.filter((item: any) => item.unpaidTotal > 0).length,
+        servicesWithoutPhoneCount: services.filter((item: any) => !String(item.phone || "").trim()).length
       },
       services
     });

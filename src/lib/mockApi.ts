@@ -1113,24 +1113,61 @@ export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
   const motorcycles = readMotorcycles();
   const repairs = readRepairs();
   const workOrders = readWorkOrders();
+  const allOfficialQrCount = workOrders.filter((item) => item.qrValue).length;
 
   const services = users.map((user) => {
     const userMotorcycles = motorcycles.filter((item) => item.userId === user.id);
     const userRepairs = repairs.filter((item) => item.userId === user.id);
     const userOpenRepairs = userRepairs.filter((item) => remainingAmount(item) > 0);
     const userWorkOrders = workOrders.filter((item) => item.userId === user.id);
+    const latestWorkOrder = [...userWorkOrders].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+    const latestMotorcycles = [...userMotorcycles]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 3)
+      .map((item) => ({
+        id: item.id,
+        licensePlate: item.licensePlate,
+        model: item.model,
+        customerName: item.customerName,
+        createdAt: item.createdAt
+      }));
+    const qrBindings = userWorkOrders
+      .filter((item) => item.qrValue)
+      .map((item) => {
+        const motorcycle = userMotorcycles.find((motorcycleItem) => motorcycleItem.id === item.motorcycleId);
+        return {
+          workOrderId: item.id,
+          motorcycleId: item.motorcycleId,
+          licensePlate: motorcycle?.licensePlate ?? "Bilinmeyen plaka",
+          model: motorcycle?.model ?? "Motosiklet kaydı",
+          qrValue: item.qrValue,
+          updatedAt: item.updatedAt
+        };
+      });
+    const customerCount = new Set(userMotorcycles.map((item) => `${item.customerName}|${item.phone}`).filter((item) => item !== "|"))
+      .size;
 
     return {
       id: user.id,
       shopName: user.shopName,
       ownerName: user.name,
       username: user.username,
+      phone: user.phone ?? "",
+      customerCount,
       motorcycleCount: userMotorcycles.length,
       activeWorkOrderCount: userWorkOrders.filter((item) => item.status !== "delivered").length,
       readyCount: userWorkOrders.filter((item) => item.status === "ready").length,
       unpaidRepairCount: userOpenRepairs.length,
       unpaidTotal: userOpenRepairs.reduce((sum, item) => sum + remainingAmount(item), 0),
-      subscriptionStatus: "Hazırlanıyor"
+      subscriptionStatus: "Aktif",
+      lastActivityAt: [latestWorkOrder?.updatedAt, latestMotorcycles[0]?.createdAt, userRepairs[0]?.createdAt]
+        .filter(Boolean)
+        .sort((a, b) => String(b).localeCompare(String(a)))[0] ?? null,
+      latestComplaint: latestWorkOrder?.complaint ?? null,
+      latestWorkOrderStatus: latestWorkOrder?.status ?? null,
+      latestMotorcycles,
+      officialQrCount: qrBindings.length,
+      officialQrBindings: qrBindings
     };
   });
 
@@ -1144,7 +1181,10 @@ export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
       motorcycleCount: motorcycles.length,
       activeWorkOrderCount: workOrders.filter((item) => item.status !== "delivered").length,
       readyCount: workOrders.filter((item) => item.status === "ready").length,
-      unpaidTotal: repairs.filter((item) => remainingAmount(item) > 0).reduce((sum, item) => sum + remainingAmount(item), 0)
+      unpaidTotal: repairs.filter((item) => remainingAmount(item) > 0).reduce((sum, item) => sum + remainingAmount(item), 0),
+      officialQrCount: allOfficialQrCount,
+      servicesWithDebtCount: services.filter((item) => item.unpaidTotal > 0).length,
+      servicesWithoutPhoneCount: services.filter((item) => !item.phone.trim()).length
     },
     services
   };

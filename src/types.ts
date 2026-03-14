@@ -95,20 +95,35 @@ export type SystemAdminOverview = {
     activeWorkOrderCount: number;
     readyCount: number;
     unpaidTotal: number;
+    officialQrCount: number;
+    servicesWithDebtCount: number;
+    servicesWithoutPhoneCount: number;
   };
   services: Array<{
     id: string;
     shopName: string;
     ownerName: string;
     username: string;
+    phone: string;
+    customerCount: number;
     motorcycleCount: number;
     activeWorkOrderCount: number;
     readyCount: number;
     unpaidRepairCount: number;
     unpaidTotal: number;
     subscriptionStatus: string;
-    officialQrCount?: number;
-    officialQrBindings?: Array<{
+    lastActivityAt: string | null;
+    latestComplaint: string | null;
+    latestWorkOrderStatus: WorkOrderStatus | null;
+    latestMotorcycles: Array<{
+      id: string;
+      licensePlate: string;
+      model: string;
+      customerName: string;
+      createdAt: string;
+    }>;
+    officialQrCount: number;
+    officialQrBindings: Array<{
       workOrderId: string;
       motorcycleId: string;
       licensePlate: string;
