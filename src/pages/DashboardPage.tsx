@@ -105,7 +105,7 @@ export function DashboardPage() {
           </Button>
           <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit-qr")}>
             <Camera size={18} />
-            QR ile Yeni Kayıt
+            Resmi QR ile Yeni Kayıt
           </Button>
         </div>
         <p className="mt-4 text-sm text-white/85">{message}</p>
