@@ -654,6 +654,47 @@ export async function updateCurrentUserProfile(input: {
   return toProfile(nextUsers.find((item) => item.id === activeUserId) ?? getActiveUserAccount());
 }
 
+export async function changeCurrentUserPassword(input: {
+  currentPassword: string;
+  nextPassword: string;
+}) {
+  if (integrationStatus.supabaseReady) {
+    return supabaseApi.changeCurrentUserPassword(input);
+  }
+
+  await wait(140);
+  const activeUserId = getActiveUserId();
+  const users = readUsers();
+  const activeUser = users.find((item) => item.id === activeUserId);
+
+  if (!activeUser) {
+    throw new Error("Aktif kullanıcı bulunamadı.");
+  }
+
+  const currentPassword = clampText(input.currentPassword, 120);
+  const nextPassword = clampText(input.nextPassword, 120);
+
+  if (activeUser.password !== currentPassword) {
+    throw new Error("Mevcut şifre yanlış.");
+  }
+
+  if (nextPassword.length < 6) {
+    throw new Error("Yeni şifre en az 6 karakter olmalı.");
+  }
+
+  const nextUsers = users.map((item) =>
+    item.id === activeUserId
+      ? {
+          ...item,
+          password: nextPassword
+        }
+      : item
+  );
+
+  writeUsers(nextUsers);
+  return { success: true };
+}
+
 export function hasSystemAdminSession() {
   const session = getStoredAdminAuth();
   return Boolean(session?.username);

@@ -288,6 +288,43 @@ export async function updateCurrentUserProfile(input: {
   };
 }
 
+export async function changeCurrentUserPassword(input: {
+  currentPassword: string;
+  nextPassword: string;
+}) {
+  const client = requireSupabase();
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user) {
+    throw authError ?? new Error("Oturum bulunamadı.");
+  }
+
+  const username = (authData.user.user_metadata.username as string) || "";
+  const email = authEmailFromUsername(username);
+
+  const { error: signInError } = await client.auth.signInWithPassword({
+    email,
+    password: input.currentPassword.trim()
+  });
+
+  if (signInError) {
+    throw new Error("Mevcut şifre yanlış.");
+  }
+
+  if (input.nextPassword.trim().length < 6) {
+    throw new Error("Yeni şifre en az 6 karakter olmalı.");
+  }
+
+  const { error: updateError } = await client.auth.updateUser({
+    password: input.nextPassword.trim()
+  });
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return { success: true };
+}
+
 export async function fetchMotorcycles() {
   const client = requireSupabase();
   const userId = await getAuthUserId();

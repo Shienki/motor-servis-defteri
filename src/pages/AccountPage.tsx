@@ -2,7 +2,7 @@ import { LogOut, Save, Settings2, Store, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle } from "../components/Ui";
-import { getCurrentUserProfile, signOutUser, updateCurrentUserProfile } from "../lib/mockApi";
+import { changeCurrentUserPassword, getCurrentUserProfile, signOutUser, updateCurrentUserProfile } from "../lib/mockApi";
 import { numbersOnly } from "../lib/format";
 import type { Profile } from "../types";
 
@@ -11,10 +11,17 @@ export function AccountPage() {
   const [user, setUser] = useState<Profile | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
   const [form, setForm] = useState({
     name: "",
     shopName: "",
     phone: ""
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    nextPassword: "",
+    nextPasswordRepeat: ""
   });
 
   useEffect(() => {
@@ -50,6 +57,34 @@ export function AccountPage() {
       setMessage(error instanceof Error ? error.message : "Bilgiler güncellenemedi.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordSaving(true);
+    setPasswordMessage("");
+
+    try {
+      if (passwordForm.nextPassword !== passwordForm.nextPasswordRepeat) {
+        throw new Error("Yeni şifre tekrarı eşleşmiyor.");
+      }
+
+      await changeCurrentUserPassword({
+        currentPassword: passwordForm.currentPassword,
+        nextPassword: passwordForm.nextPassword
+      });
+
+      setPasswordForm({
+        currentPassword: "",
+        nextPassword: "",
+        nextPasswordRepeat: ""
+      });
+      setPasswordMessage("Şifre güncellendi.");
+    } catch (error) {
+      setPasswordMessage(error instanceof Error ? error.message : "Şifre güncellenemedi.");
+    } finally {
+      setPasswordSaving(false);
     }
   }
 
@@ -148,6 +183,54 @@ export function AccountPage() {
             >
               <LogOut size={18} />
               Çıkış yap
+            </Button>
+          </div>
+        </form>
+      </Panel>
+
+      <Panel>
+        <SectionTitle
+          eyebrow="Güvenlik"
+          title="Şifre değiştir"
+          description="Hesabının giriş şifresini buradan güncelleyebilirsin."
+        />
+
+        <form className="mt-5 grid gap-4" onSubmit={handlePasswordSubmit}>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label>Mevcut şifre</Label>
+              <Input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <Label>Yeni şifre</Label>
+              <Input
+                type="password"
+                value={passwordForm.nextPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, nextPassword: event.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <Label>Yeni şifre tekrar</Label>
+              <Input
+                type="password"
+                value={passwordForm.nextPasswordRepeat}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, nextPasswordRepeat: event.target.value }))}
+                required
+              />
+            </div>
+          </div>
+
+          {passwordMessage ? <p className="text-sm text-steel">{passwordMessage}</p> : null}
+
+          <div className="flex justify-start">
+            <Button type="submit" disabled={passwordSaving}>
+              {passwordSaving ? "Şifre güncelleniyor..." : "Şifreyi Güncelle"}
             </Button>
           </div>
         </form>
