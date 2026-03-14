@@ -705,8 +705,10 @@ export async function signInSystemAdmin(input: {
   }
 
   try {
-    const response = await fetch("/api/admin-login", {
+    const response = await fetch(`/api/admin-login?ts=${Date.now()}`, {
       method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json"
       },
@@ -1090,8 +1092,9 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
 
 export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
   if (integrationStatus.supabaseReady) {
-    const response = await fetch("/api/admin-overview", {
+    const response = await fetch(`/api/admin-overview?ts=${Date.now()}`, {
       method: "GET",
+      cache: "no-store",
       credentials: "include"
     });
 
