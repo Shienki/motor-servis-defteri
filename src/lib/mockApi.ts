@@ -973,7 +973,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
 
 export async function fetchPublicTrackingByToken(token: string) {
   await wait(140);
-  const response = await fetch(`/api/public-tracking?token=${encodeURIComponent(clampText(token, 120))}`, {
+  const response = await fetch(`/api/system-public-tracking?token=${encodeURIComponent(clampText(token, 120))}`, {
     cache: "no-store",
     headers: {
       "Cache-Control": "no-cache"
@@ -987,7 +987,7 @@ export async function fetchPublicTrackingByToken(token: string) {
 
 export async function fetchPublicTrackingByPlate(plate: string) {
   await wait(140);
-  const response = await fetch(`/api/public-tracking?plate=${encodeURIComponent(formatPlateDisplay(plate))}`, {
+  const response = await fetch(`/api/system-public-tracking?plate=${encodeURIComponent(formatPlateDisplay(plate))}`, {
     cache: "no-store",
     headers: {
       "Cache-Control": "no-cache"
@@ -1001,7 +1001,7 @@ export async function fetchPublicTrackingByPlate(plate: string) {
 
 export async function fetchPublicTrackingByOfficialQr(qrValue: string) {
   await wait(140);
-  const response = await fetch(`/api/public-tracking?qr=${encodeURIComponent(qrValue)}`, {
+  const response = await fetch(`/api/system-public-tracking?qr=${encodeURIComponent(qrValue)}`, {
     cache: "no-store",
     headers: {
       "Cache-Control": "no-cache"
