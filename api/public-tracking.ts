@@ -1,3 +1,5 @@
+import { getSupabaseServiceClient } from "./_supabase";
+
 type WorkOrderRow = {
   id: string;
   motorcycle_id: string;
@@ -46,15 +48,16 @@ async function fetchOptionalRest(path: string) {
 }
 
 async function fetchAuthUser(userId: string) {
-  const response = await fetch(`${getEnv("VITE_SUPABASE_URL")}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
-    headers: serviceHeaders()
-  });
-
-  if (!response.ok) {
+  try {
+    const client = getSupabaseServiceClient();
+    const { data, error } = await client.auth.admin.getUserById(userId);
+    if (error || !data.user) {
+      return null;
+    }
+    return data.user;
+  } catch {
     return null;
   }
-
-  return response.json();
 }
 
 function defaultCustomerStatusNote(status: string | null) {
@@ -163,7 +166,7 @@ export default async function handler(req: any, res: any) {
 
     res.status(200).json({
       shopName: profileRows?.[0]?.shop_name ?? "Motor Servis",
-      shopPhone: profileRows?.[0]?.phone ?? authUser?.user?.user_metadata?.phone ?? "",
+      shopPhone: profileRows?.[0]?.phone ?? authUser?.user_metadata?.phone ?? "",
       motorcycle: {
         licensePlate: motorcycle.license_plate,
         model: motorcycle.model
