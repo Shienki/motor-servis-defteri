@@ -1,20 +1,21 @@
-const DEFAULT_ADMIN_USERNAME = "shienki";
-const DEFAULT_ADMIN_PASSWORD = "Arcelik123.";
-const DEFAULT_SESSION_SECRET = "motor-servis-defteri-admin-secret";
 const COOKIE_NAME = "msd_admin_session";
 
-function getEnv(name: string, fallback = "") {
-  return process.env[name] || fallback;
+function requireEnv(name: string) {
+  const value = String(process.env[name] || "").trim();
+  if (!value) {
+    throw new Error(`${name} tanımlı değil.`);
+  }
+  return value;
 }
 
 function getAdminSessionToken() {
-  return `admin:${getEnv("ADMIN_SESSION_SECRET", DEFAULT_SESSION_SECRET)}`;
+  return `admin:${requireEnv("ADMIN_SESSION_SECRET")}`;
 }
 
 export function getAdminCredentials() {
   return {
-    username: getEnv("ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME).trim().toLowerCase(),
-    password: getEnv("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+    username: requireEnv("ADMIN_USERNAME").toLowerCase(),
+    password: requireEnv("ADMIN_PASSWORD")
   };
 }
 
@@ -63,5 +64,13 @@ export function clearAdminCookie(res: any) {
 
 export function requireAdmin(req: any) {
   const token = readAdminToken(req);
-  return verifyAdminToken(token);
+  const verified = verifyAdminToken(token);
+  if (!verified) {
+    return null;
+  }
+
+  return {
+    username: verified.username,
+    displayName: verified.username
+  };
 }

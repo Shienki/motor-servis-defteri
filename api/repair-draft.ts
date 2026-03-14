@@ -1,4 +1,5 @@
 import { categorizeRepairTranscript } from "./_repair-ai";
+import { applyRateLimit, getClientIp } from "./_rateLimit";
 import { requireAuthenticatedUser } from "./_supabase";
 
 export default async function handler(req: any, res: any) {
@@ -13,13 +14,22 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const ip = getClientIp(req);
+  if (
+    !applyRateLimit(res, `repair-draft:${ip}:${authenticatedUser.user.id}`, {
+      windowMs: 5 * 60 * 1000,
+      max: 20
+    })
+  ) {
+    return;
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({ error: "OPENAI_API_KEY tanımlı değil." });
     return;
   }
 
   const transcript = typeof req.body?.transcript === "string" ? req.body.transcript.trim() : "";
-
   if (!transcript) {
     res.status(400).json({ error: "Transcript zorunlu." });
     return;

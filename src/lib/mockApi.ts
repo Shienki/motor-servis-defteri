@@ -30,12 +30,6 @@ import {
 import { getAccessToken } from "./supabase";
 import * as supabaseApi from "./supabaseApi";
 
-const systemAdminConfig = {
-  username: "shienki",
-  password: "Arcelik123.",
-  displayName: "Shienki"
-};
-
 const STORAGE_KEYS = {
   version: "motor-servis-defteri:seed-version",
   users: "motor-servis-defteri:users",
@@ -705,46 +699,42 @@ export async function signInSystemAdmin(input: {
   password: string;
   rememberMe: boolean;
 }) {
-  if (typeof window !== "undefined") {
-    try {
-      const response = await fetch("/api/admin-login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(input)
-      });
-
-      if (response.ok) {
-        const payload = await response.json();
-        writeStoredAdminAuth({
-          username: payload.admin.username,
-          displayName: payload.admin.displayName,
-          rememberMe: input.rememberMe
-        });
-        return payload;
-      }
-    } catch {
-      // Fallback to local mock logic
-    }
+  if (typeof window === "undefined") {
+    await wait(140);
+    return { success: false, error: "Yönetici girişi yalnızca tarayıcı üzerinden kullanılabilir." };
   }
 
-  await wait(140);
-  const username = clampText(input.username, 50).toLowerCase();
-  const password = clampText(input.password, 120);
+  try {
+    const response = await fetch("/api/admin-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(input)
+    });
 
-  if (username !== systemAdminConfig.username || password !== systemAdminConfig.password) {
-    return { success: false };
-  }
-
-  writeStoredAdminAuth({ username, displayName: systemAdminConfig.displayName, rememberMe: input.rememberMe });
-  return {
-    success: true,
-    admin: {
-      username: systemAdminConfig.username,
-      displayName: systemAdminConfig.displayName
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      writeStoredAdminAuth(null);
+      return {
+        success: false,
+        error: typeof payload?.error === "string" ? payload.error : "Yönetici girişi şu an kullanılamıyor."
+      };
     }
-  };
+
+    writeStoredAdminAuth({
+      username: payload.admin.username,
+      displayName: payload.admin.displayName,
+      rememberMe: input.rememberMe
+    });
+    return payload;
+  } catch {
+    writeStoredAdminAuth(null);
+    return {
+      success: false,
+      error: "Yönetici girişi şu an kullanılamıyor."
+    };
+  }
 }
 
 export async function signOutSystemAdmin() {
@@ -1101,6 +1091,7 @@ export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
     return response.json();
   }
   await wait();
+  const storedAdmin = getStoredAdminAuth();
   const users = readUsers();
   const motorcycles = readMotorcycles();
   const repairs = readRepairs();
@@ -1128,8 +1119,8 @@ export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
 
   return {
     systemAdmin: {
-      username: systemAdminConfig.username,
-      displayName: systemAdminConfig.displayName
+      username: storedAdmin?.username ?? "admin",
+      displayName: storedAdmin?.displayName ?? "Yönetici"
     },
     totals: {
       serviceCount: services.length,
