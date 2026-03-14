@@ -26,6 +26,7 @@ export function CameraScannerPage() {
   const [cameraReady, setCameraReady] = useState(false);
   const [pendingQr, setPendingQr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showManualFallback, setShowManualFallback] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -120,7 +121,12 @@ export function CameraScannerPage() {
         return;
       }
 
-      setStatus("Bu resmi plaka QR'ı için kayıt bulunamadı.");
+      if (mode === "customer-track") {
+        setShowManualFallback(true);
+        setStatus("Kayıtlı QR bulunamadı. Lütfen plakanızı elle giriniz.");
+      } else {
+        setStatus("Bu resmi plaka QR'ı için kayıt bulunamadı.");
+      }
       solvedRef.current = false;
       setPendingQr("");
     } catch (error) {
@@ -134,6 +140,7 @@ export function CameraScannerPage() {
 
   function resetScan() {
     setPendingQr("");
+    setShowManualFallback(false);
     solvedRef.current = false;
     setStatus("Resmi plaka QR'ı bekleniyor.");
   }
@@ -204,6 +211,12 @@ export function CameraScannerPage() {
 
         <p className="mt-4 text-sm text-white/85">{status}</p>
         {supportNote ? <p className="mt-2 text-sm text-white/70">{supportNote}</p> : null}
+        {showManualFallback ? (
+          <div className="mt-4 rounded-2xl bg-white/10 px-4 py-4 text-sm text-white/85">
+            <p className="font-medium text-white">Kayıtlı QR bulunamadı.</p>
+            <p className="mt-1">Lütfen plakanızı elle girerek müşteri takip ekranına devam edin.</p>
+          </div>
+        ) : null}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Button
@@ -212,8 +225,13 @@ export function CameraScannerPage() {
           >
             Geri dön
           </Button>
-          <Button variant="ghost" onClick={() => navigate("/motosiklet-yeni?yontem=manuel")}>
-            Elle plaka gir
+          <Button
+            variant="ghost"
+            onClick={() =>
+              navigate(mode === "customer-track" ? "/giris" : "/motosiklet-yeni?yontem=manuel")
+            }
+          >
+            {mode === "customer-track" ? "Plakayı elle gir" : "Elle plaka gir"}
           </Button>
         </div>
       </Panel>
