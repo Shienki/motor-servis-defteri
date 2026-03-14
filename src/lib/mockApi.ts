@@ -1,4 +1,4 @@
-import {
+﻿import {
   currentUser,
   defaultUserAccount,
   demoUserAccounts,
@@ -568,11 +568,11 @@ export async function registerUser(input: {
   const username = clampText(input.username, 50).toLowerCase();
 
   if (!username) {
-    throw new Error("Kullanıcı adı zorunludur.");
+    throw new Error("KullanÄ±cÄ± adÄ± zorunludur.");
   }
 
   if (users.some((item) => item.username === username)) {
-    throw new Error("Bu kullanıcı adı zaten kayıtlı.");
+    throw new Error("Bu kullanÄ±cÄ± adÄ± zaten kayÄ±tlÄ±.");
   }
 
   const user: UserAccount = {
@@ -662,18 +662,18 @@ export async function changeCurrentUserPassword(input: {
   const activeUser = users.find((item) => item.id === activeUserId);
 
   if (!activeUser) {
-    throw new Error("Aktif kullanıcı bulunamadı.");
+    throw new Error("Aktif kullanÄ±cÄ± bulunamadÄ±.");
   }
 
   const currentPassword = clampText(input.currentPassword, 120);
   const nextPassword = clampText(input.nextPassword, 120);
 
   if (activeUser.password !== currentPassword) {
-    throw new Error("Mevcut şifre yanlış.");
+    throw new Error("Mevcut ÅŸifre yanlÄ±ÅŸ.");
   }
 
   if (nextPassword.length < 6) {
-    throw new Error("Yeni şifre en az 6 karakter olmalı.");
+    throw new Error("Yeni ÅŸifre en az 6 karakter olmalÄ±.");
   }
 
   const nextUsers = users.map((item) =>
@@ -701,7 +701,7 @@ export async function signInSystemAdmin(input: {
 }) {
   if (typeof window === "undefined") {
     await wait(140);
-    return { success: false, error: "Yönetici girişi yalnızca tarayıcı üzerinden kullanılabilir." };
+    return { success: false, error: "YÃ¶netici giriÅŸi yalnÄ±zca tarayÄ±cÄ± Ã¼zerinden kullanÄ±labilir." };
   }
 
   try {
@@ -945,14 +945,14 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
   const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
 
   if (!motorcycle) {
-    throw new Error("Bu motosiklet bulunamadı.");
+    throw new Error("Bu motosiklet bulunamadÄ±.");
   }
 
   const nextWorkOrder = sanitizeWorkOrder({
     id: crypto.randomUUID(),
     motorcycleId,
     userId: activeUserId,
-    complaint: "Servis takip süreci",
+    complaint: "Servis takip sÃ¼reci",
       status: "received",
     estimatedDeliveryDate: null,
     publicTrackingToken: crypto.randomUUID(),
@@ -964,7 +964,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
   });
 
   if (!nextWorkOrder) {
-    throw new Error("İş durumu kaydı oluşturulamadı.");
+    throw new Error("Ä°ÅŸ durumu kaydÄ± oluÅŸturulamadÄ±.");
   }
 
   writeWorkOrders([nextWorkOrder, ...readWorkOrders()]);
@@ -1042,7 +1042,7 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
   const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
 
   if (!motorcycle) {
-    throw new Error("Bu motosiklet bulunamadı.");
+    throw new Error("Bu motosiklet bulunamadÄ±.");
   }
 
   const conflictingOrder = readWorkOrders().find(
@@ -1050,7 +1050,7 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
   );
 
   if (conflictingOrder) {
-    throw new Error("Bu resmi plaka QR'ı başka bir motosiklete bağlı.");
+    throw new Error("Bu resmi plaka QR'Ä± baÅŸka bir motosiklete baÄŸlÄ±.");
   }
 
   let targetOrder =
@@ -1089,7 +1089,6 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
   writeWorkOrders(nextWorkOrders);
   return true;
 }
-
 export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
   if (integrationStatus.supabaseReady) {
     const response = await fetch(`/api/admin-overview?ts=${Date.now()}`, {
@@ -1099,10 +1098,11 @@ export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
     });
 
     if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
         writeStoredAdminAuth(null);
       }
-      throw new Error("Yönetici paneli verileri alınamadı.");
+      throw new Error(typeof payload?.error === "string" ? payload.error : "Yönetici paneli verileri alınamadı.");
     }
 
     return response.json();
@@ -1208,7 +1208,7 @@ export async function addWorkOrderUpdate(input: {
   const workOrder = readWorkOrders().find((item) => item.id === input.workOrderId && item.userId === activeUserId);
 
   if (!workOrder) {
-    throw new Error("İş emri bulunamadı.");
+    throw new Error("Ä°ÅŸ emri bulunamadÄ±.");
   }
 
   const nextUpdate = sanitizeWorkOrderUpdate({
@@ -1221,7 +1221,7 @@ export async function addWorkOrderUpdate(input: {
   });
 
   if (!nextUpdate) {
-    throw new Error("Güncelleme kaydedilemedi.");
+    throw new Error("GÃ¼ncelleme kaydedilemedi.");
   }
 
   writeWorkOrderUpdates([nextUpdate, ...readWorkOrderUpdates()]);
@@ -1250,13 +1250,13 @@ export async function simulatePlateScan() {
 export async function simulateVoiceExtraction(): Promise<AiRepairDraft> {
   await wait(900);
   return {
-    description: "Ön takımdan ses geliyor diye geldi. Furç takımı kontrol edildi, sağ keçe değişti, yağ tamamlama yapıldı.",
+    description: "Ã–n takÄ±mdan ses geliyor diye geldi. FurÃ§ takÄ±mÄ± kontrol edildi, saÄŸ keÃ§e deÄŸiÅŸti, yaÄŸ tamamlama yapÄ±ldÄ±.",
     laborCost: 950,
     partsCost: 700,
     kilometer: 18720,
     paymentStatus: "partial",
     paidAmount: 500,
-    notes: "500 TL peşin alındı, kalan haftaya ödenecek."
+    notes: "500 TL peÅŸin alÄ±ndÄ±, kalan haftaya Ã¶denecek."
   };
 }
 
@@ -1291,7 +1291,7 @@ function normalizeTranscriptForExtraction(transcript: string) {
     .replace(/\bburca\b/giu, "burc")
     .replace(/\bfurca\b/giu, "furc")
     .replace(
-      /((?:iscilik|işçilik|yedek\s*parca|yedek\s*parça|parca|parça|kilometre|kilometer|km)(?:\s+ucreti|\s+ücreti|\s+tutari|\s+tutarı)?)\s*[.:;=-]+\s*(\d)/giu,
+      /((?:iscilik|iÅŸÃ§ilik|yedek\s*parca|yedek\s*parÃ§a|parca|parÃ§a|kilometre|kilometer|km)(?:\s+ucreti|\s+Ã¼creti|\s+tutari|\s+tutarÄ±)?)\s*[.:;=-]+\s*(\d)/giu,
       "$1 $2"
     )
     .replace(/\b(\d{1,3}(?:\.\d{3})+(?:,\d+)?)\b/gu, (_, value: string) => value.replace(/\./g, ""))
@@ -1314,13 +1314,13 @@ function extractNumberByPatterns(transcript: string, patterns: RegExp[]) {
 function toAsciiExtractionText(transcript: string) {
   return transcript
     .toLocaleLowerCase("tr-TR")
-    .replace(/ı/g, "i")
-    .replace(/iş/g, "is")
-    .replace(/ş/g, "s")
-    .replace(/ç/g, "c")
-    .replace(/ğ/g, "g")
-    .replace(/ö/g, "o")
-    .replace(/ü/g, "u");
+    .replace(/Ä±/g, "i")
+    .replace(/iÅŸ/g, "is")
+    .replace(/ÅŸ/g, "s")
+    .replace(/Ã§/g, "c")
+    .replace(/ÄŸ/g, "g")
+    .replace(/Ã¶/g, "o")
+    .replace(/Ã¼/g, "u");
 }
 
 function extractLabeledAmount(transcript: string, labels: string[]) {
@@ -1350,16 +1350,16 @@ function extractKilometerValue(transcript: string) {
 function stripStructuredFieldsFromDescription(value: string) {
   return value
     .replace(
-      /\b(?:iscilik|işçilik|iscilik)\b(?:\s+(?:ucreti|ücreti|tutari|tutarı))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
+      /\b(?:iscilik|iÅŸÃ§ilik|iscilik)\b(?:\s+(?:ucreti|Ã¼creti|tutari|tutarÄ±))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
       " "
     )
     .replace(
-      /\b(?:yedek\s*parca|yedek\s*parça|parca|parça)\b(?:\s+(?:ucreti|ücreti|tutari|tutarı))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
+      /\b(?:yedek\s*parca|yedek\s*parÃ§a|parca|parÃ§a)\b(?:\s+(?:ucreti|Ã¼creti|tutari|tutarÄ±))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*\s*(?:tl)?/giu,
       " "
     )
     .replace(/\b(?:kilometre|kilometer|km)\b(?:\s*(?:de|deki))?(?:\s*[:=.,;-]\s*)*\d[\d.,]*/giu, " ")
     .replace(/\d[\d.,]*\s*(?:km|kilometre|kilometer)\b/giu, " ")
-    .replace(/\b(?:odeme|ödeme)\s+durumu\b\s*(?:paid|unpaid|partial|ödendi|odendi|ödenmedi|odenmedi|kısmi|kismi)?/giu, " ")
+    .replace(/\b(?:odeme|Ã¶deme)\s+durumu\b\s*(?:paid|unpaid|partial|Ã¶dendi|odendi|Ã¶denmedi|odenmedi|kÄ±smi|kismi)?/giu, " ")
     .replace(/\b(?:paid|unpaid|partial)\b/giu, " ")
     .replace(/\b\d[\d.,]*\b/gu, " ")
     .replace(/\s{2,}/g, " ")
@@ -1368,13 +1368,13 @@ function stripStructuredFieldsFromDescription(value: string) {
 
 function cleanStructuredDescription(value: string) {
   const sanitized = clampText(value, 220)
-    .replace(/bagalar degisti/gi, "Bagalar değişti")
-    .replace(/baga degisti/gi, "Baga değişti")
-    .replace(/debriyaj balatasi/gi, "Debriyaj balatası")
-    .replace(/degisti/gi, "değişti")
+    .replace(/bagalar degisti/gi, "Bagalar deÄŸiÅŸti")
+    .replace(/baga degisti/gi, "Baga deÄŸiÅŸti")
+    .replace(/debriyaj balatasi/gi, "Debriyaj balatasÄ±")
+    .replace(/degisti/gi, "deÄŸiÅŸti")
     .replace(/kontrol edildi/gi, "kontrol edildi")
-    .replace(/yapildi/gi, "yapıldı")
-    .replace(/takildi/gi, "takıldı")
+    .replace(/yapildi/gi, "yapÄ±ldÄ±")
+    .replace(/takildi/gi, "takÄ±ldÄ±")
     .replace(/\b0{2,}\b/g, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,!?])/g, "$1")
@@ -1384,7 +1384,7 @@ function cleanStructuredDescription(value: string) {
     return "";
   }
 
-  if (!/[a-zA-ZçğıöşüÇĞİÖŞÜ]/.test(sanitized)) {
+  if (!/[a-zA-ZÃ§ÄŸÄ±Ã¶ÅŸÃ¼Ã‡ÄÄ°Ã–ÅÃœ]/.test(sanitized)) {
     return "";
   }
 
@@ -1409,9 +1409,9 @@ function buildAssistantSummary(draft: AiRepairDraft) {
 function inferPaymentStatus(transcript: string): PaymentStatus | null {
   const lower = transcript.toLocaleLowerCase("tr-TR");
 
-  if (/(kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower)) return "partial";
-  if (/(odendi|ödendi|hesap kapandi|hesap kapandı|tamamlandi|tamamlandı)/i.test(lower)) return "paid";
-  if (/(odenmedi|ödenmedi|veresiye|sonra alinacak|sonra alınacak|haftaya alinacak|haftaya alınacak)/i.test(lower)) {
+  if (/(kismi|kÄ±smi|pesin|peÅŸin|kapora|kalan)/i.test(lower)) return "partial";
+  if (/(odendi|Ã¶dendi|hesap kapandi|hesap kapandÄ±|tamamlandi|tamamlandÄ±)/i.test(lower)) return "paid";
+  if (/(odenmedi|Ã¶denmedi|veresiye|sonra alinacak|sonra alÄ±nacak|haftaya alinacak|haftaya alÄ±nacak)/i.test(lower)) {
     return "unpaid";
   }
 
@@ -1426,18 +1426,18 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     .map((segment) => segment.trim())
     .filter(Boolean);
 
-  const laborCost = extractLabeledAmount(cleaned, ["iscilik", "işçilik"]);
-  const partsCost = extractLabeledAmount(cleaned, ["yedek\\s*parca", "yedek\\s*parça", "parca", "parça"]);
+  const laborCost = extractLabeledAmount(cleaned, ["iscilik", "iÅŸÃ§ilik"]);
+  const partsCost = extractLabeledAmount(cleaned, ["yedek\\s*parca", "yedek\\s*parÃ§a", "parca", "parÃ§a"]);
   const kilometer = extractKilometerValue(cleaned);
   const paymentStatus =
     inferPaymentStatus(cleaned) ??
-    (/(yarisi|yarısı|yarim|yarım|kismi|kısmi|pesin|peşin|kapora|kalan)/i.test(lower) ? "partial" : null);
-  const hasPaymentPhrase = /(odeme|ödeme|odendi|ödendi|odenmedi|ödenmedi|pesin|peşin|kalan|yarisi|yarısı|yarim|yarım)/i.test(
+    (/(yarisi|yarÄ±sÄ±|yarim|yarÄ±m|kismi|kÄ±smi|pesin|peÅŸin|kapora|kalan)/i.test(lower) ? "partial" : null);
+  const hasPaymentPhrase = /(odeme|Ã¶deme|odendi|Ã¶dendi|odenmedi|Ã¶denmedi|pesin|peÅŸin|kalan|yarisi|yarÄ±sÄ±|yarim|yarÄ±m)/i.test(
     lower
   );
 
   const noteSegments = segments.filter((segment) =>
-    /(haftaya|sonra|tekrar|gelecek|kontrol edilecek|bakilacak|bakılacak|degisecek|değişecek|aranacak|haber verilecek)/i.test(
+    /(haftaya|sonra|tekrar|gelecek|kontrol edilecek|bakilacak|bakÄ±lacak|degisecek|deÄŸiÅŸecek|aranacak|haber verilecek)/i.test(
       segment
     )
   );
@@ -1446,7 +1446,7 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     .filter(
       (segment) =>
         Boolean(segment) &&
-        /(degisti|değişti|yapildi|yapıldı|takildi|takıldı|kontrol edildi|temizlendi|ayarlandi|ayarlandı|degisen|değişen)/i.test(
+        /(degisti|deÄŸiÅŸti|yapildi|yapÄ±ldÄ±|takildi|takÄ±ldÄ±|kontrol edildi|temizlendi|ayarlandi|ayarlandÄ±|degisen|deÄŸiÅŸen)/i.test(
           segment
         )
     );
@@ -1467,7 +1467,7 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
     draft.partsCost = 0;
   }
 
-  if (paymentStatus === "partial" && /(yarisi|yarısı|yarim|yarım)/i.test(lower)) {
+  if (paymentStatus === "partial" && /(yarisi|yarÄ±sÄ±|yarim|yarÄ±m)/i.test(lower)) {
     const total = (draft.laborCost ?? 0) + (draft.partsCost ?? 0);
     if (total > 0) {
       draft.paidAmount = Math.round(total / 2);
@@ -1478,8 +1478,8 @@ function buildLocalRepairDraft(transcript: string): AiRepairDraft {
   }
 
   const explicitPaidAmount = extractNumberByPatterns(cleaned, [
-    /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin|peşin)\s*alindi/i,
-    /(\d[\d.,]*)\s*(?:tl)?\s*(?:alindi|alındı)/i
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:pesin|peÅŸin)\s*alindi/i,
+    /(\d[\d.,]*)\s*(?:tl)?\s*(?:alindi|alÄ±ndÄ±)/i
   ]);
   if (draft.paymentStatus === "partial" && explicitPaidAmount !== null) {
     draft.paidAmount = explicitPaidAmount;
@@ -1518,7 +1518,7 @@ function preserveMotorcycleTerms(sourceTranscript: string, draft: AiRepairDraft)
 }
 
 export async function analyzeRepairTranscript(
-  transcript = "Ön fren balatası değişti, işçilik 600, parça 450, kilometre 18720, 500 peşin alındı."
+  transcript = "Ã–n fren balatasÄ± deÄŸiÅŸti, iÅŸÃ§ilik 600, parÃ§a 450, kilometre 18720, 500 peÅŸin alÄ±ndÄ±."
 ): Promise<AiRepairDraft> {
   const cleanedTranscript = normalizeSharedTranscriptForExtraction(transcript);
   const localDraft = buildSharedLocalRepairDraft(cleanedTranscript);
@@ -1556,7 +1556,7 @@ export async function analyzeRepairTranscript(
     });
 
     if (!response.ok) {
-      throw new Error("AI servisi hazır değil.");
+      throw new Error("AI servisi hazÄ±r deÄŸil.");
     }
 
     const parsed = (await response.json()) as {
@@ -1614,7 +1614,7 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
   const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
 
   if (!motorcycle) {
-    throw new Error("Bu motosiklete işlem ekleme yetkin yok.");
+    throw new Error("Bu motosiklete iÅŸlem ekleme yetkin yok.");
   }
 
   const safeLabor = clampNumber(draft.laborCost, 0, 999999);
@@ -1630,7 +1630,7 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
             id: crypto.randomUUID(),
             amount: totalCost,
             paidAt: new Date().toISOString().slice(0, 10),
-            note: "İşlem onayında tam ödeme alındı."
+            note: "Ä°ÅŸlem onayÄ±nda tam Ã¶deme alÄ±ndÄ±."
           }
         ]
       : draft.paymentStatus === "partial" && safePaidAmount > 0
@@ -1639,7 +1639,7 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
               id: crypto.randomUUID(),
               amount: safePaidAmount,
               paidAt: new Date().toISOString().slice(0, 10),
-              note: "İşlem onayında kısmi ödeme alındı."
+              note: "Ä°ÅŸlem onayÄ±nda kÄ±smi Ã¶deme alÄ±ndÄ±."
             }
           ]
       : [];
@@ -1728,11 +1728,11 @@ export async function createMotorcycle(input: Omit<Motorcycle, "id" | "createdAt
   const canonical = canonicalPlate(formattedPlate);
 
   if (!canonical) {
-    throw new Error("Geçersiz plaka.");
+    throw new Error("GeÃ§ersiz plaka.");
   }
 
   if (motorcycles.some((item) => item.userId === activeUserId && canonicalPlate(item.licensePlate) === canonical)) {
-    throw new Error("Bu plaka zaten kayıtlı.");
+    throw new Error("Bu plaka zaten kayÄ±tlÄ±.");
   }
 
   const nextMotorcycle = sanitizeMotorcycle({
@@ -1749,9 +1749,10 @@ export async function createMotorcycle(input: Omit<Motorcycle, "id" | "createdAt
   });
 
   if (!nextMotorcycle) {
-    throw new Error("Motosiklet kaydı oluşturulamadı.");
+    throw new Error("Motosiklet kaydÄ± oluÅŸturulamadÄ±.");
   }
 
   writeMotorcycles([nextMotorcycle, ...motorcycles]);
   return nextMotorcycle;
 }
+

@@ -1,8 +1,7 @@
-import { applyRateLimit, getClientIp } from "./_rateLimit";
 import { requireAdmin } from "./_adminAuth";
 
 function getEnv(name: string) {
-  const value = process.env[name];
+  const value = String(process.env[name] || "").trim();
   if (!value) {
     throw new Error(`${name} tanımlı değil.`);
   }
@@ -23,21 +22,21 @@ function serviceHeaders() {
 }
 
 async function fetchRest(path: string) {
-  const response = await fetch(restUrl(path), { headers: serviceHeaders() });
+  const response = await fetch(restUrl(path), {
+    headers: serviceHeaders()
+  });
+
   if (!response.ok) {
-    throw new Error(await response.text());
+    const body = await response.text();
+    throw new Error(`REST ${response.status}: ${body}`);
   }
+
   return response.json();
 }
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
-  const ip = getClientIp(req);
-  if (!applyRateLimit(res, `admin-overview:${ip}`, { windowMs: 60 * 1000, max: 60 })) {
     return;
   }
 
@@ -120,6 +119,8 @@ export default async function handler(req: any, res: any) {
       services
     });
   } catch (error: any) {
-    res.status(500).json({ error: error?.message ?? "Yönetici paneli verileri alınamadı." });
+    res.status(500).json({
+      error: typeof error?.message === "string" ? error.message : "Yönetici paneli verileri alınamadı."
+    });
   }
 }
