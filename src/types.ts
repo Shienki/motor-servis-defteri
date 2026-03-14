@@ -1,10 +1,6 @@
 export type PaymentStatus = "paid" | "unpaid" | "partial";
 
-export type WorkOrderStatus =
-  | "received"
-  | "in_progress"
-  | "ready"
-  | "delivered";
+export type WorkOrderStatus = "received" | "in_progress" | "ready" | "delivered";
 
 export type PaymentEntry = {
   id: string;
@@ -111,5 +107,14 @@ export type SystemAdminOverview = {
     unpaidRepairCount: number;
     unpaidTotal: number;
     subscriptionStatus: string;
+    officialQrCount?: number;
+    officialQrBindings?: Array<{
+      workOrderId: string;
+      motorcycleId: string;
+      licensePlate: string;
+      model: string;
+      qrValue: string;
+      updatedAt: string;
+    }>;
   }>;
 };

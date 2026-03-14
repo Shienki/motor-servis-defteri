@@ -75,6 +75,20 @@ export default async function handler(req: any, res: any) {
     const services = (profileRows ?? []).map((row: any) => {
       const userRepairs = normalizedRepairs.filter((item: any) => item.userId === row.id);
       const userWorkOrders = (workOrderRows ?? []).filter((item: any) => item.user_id === row.id);
+      const qrBindings = userWorkOrders
+        .filter((item: any) => item.qr_value)
+        .map((item: any) => {
+          const motorcycle = (motorcycleRows ?? []).find((motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id);
+          return {
+            workOrderId: item.id,
+            motorcycleId: item.motorcycle_id,
+            licensePlate: motorcycle?.license_plate ?? "Bilinmeyen plaka",
+            model: motorcycle?.model ?? "Motosiklet kaydı",
+            qrValue: item.qr_value,
+            updatedAt: item.updated_at
+          };
+        })
+        .sort((a: any, b: any) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 
       return {
         id: row.id,
@@ -86,7 +100,9 @@ export default async function handler(req: any, res: any) {
         readyCount: userWorkOrders.filter((item: any) => item.status === "ready").length,
         unpaidRepairCount: userRepairs.filter((item: any) => item.remaining > 0).length,
         unpaidTotal: userRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0),
-        subscriptionStatus: "Aktif"
+        subscriptionStatus: "Aktif",
+        officialQrCount: qrBindings.length,
+        officialQrBindings: qrBindings
       };
     });
 
