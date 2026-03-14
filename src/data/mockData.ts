@@ -4,7 +4,8 @@ export const currentUser: Profile = {
   id: "user-1",
   name: "Murat Usta",
   shopName: "Murat Motor Servis",
-  username: "muratusta"
+  username: "muratusta",
+  phone: "05321234567"
 };
 
 export const defaultUserAccount: UserAccount = {
@@ -19,21 +20,24 @@ export const demoUserAccounts: UserAccount[] = [
     name: "Ahmet Kaya",
     shopName: "Kaya Moto Servis",
     username: "ahmetusta",
-    password: "Ahmet123."
+    password: "Ahmet123.",
+    phone: "05321112233"
   },
   {
     id: "user-3",
     name: "Selim Demir",
     shopName: "Demir Garage",
     username: "selimusta",
-    password: "Selim123."
+    password: "Selim123.",
+    phone: "05332223344"
   },
   {
     id: "user-4",
     name: "Emre Çetin",
     shopName: "Çetin Motor Atölye",
     username: "emreusta",
-    password: "Emre123."
+    password: "Emre123.",
+    phone: "05334445566"
   }
 ];
 

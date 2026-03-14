@@ -5,6 +5,7 @@ create table if not exists profiles (
   username text not null unique,
   name text not null,
   shop_name text not null,
+  phone text not null default '',
   created_at timestamptz not null default now()
 );
 

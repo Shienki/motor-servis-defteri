@@ -152,7 +152,8 @@ function sanitizeUserAccount(item: unknown): UserAccount | null {
     name: clampText(value.name, 80),
     shopName: clampText(value.shopName, 80),
     username,
-    password
+    password,
+    phone: clampText((value as { phone?: string }).phone, 30)
   };
 }
 
@@ -546,7 +547,8 @@ function toProfile(user: UserAccount): Profile {
     id: user.id,
     name: user.name,
     shopName: user.shopName,
-    username: user.username
+    username: user.username,
+    phone: user.phone ?? ""
   };
 }
 
@@ -584,7 +586,8 @@ export async function registerUser(input: {
     name: clampText(input.name, 80),
     shopName: clampText(input.shopName, 80),
     username,
-    password: clampText(input.password, 120)
+    password: clampText(input.password, 120),
+    phone: ""
   };
 
   writeUsers([user, ...users]);
@@ -622,6 +625,33 @@ export async function signOutUser() {
   }
   await wait(30);
   writeStoredAuth(null);
+}
+
+export async function updateCurrentUserProfile(input: {
+  name: string;
+  shopName: string;
+  phone: string;
+}) {
+  if (integrationStatus.supabaseReady) {
+    return supabaseApi.updateCurrentUserProfile(input);
+  }
+
+  await wait(140);
+  const activeUserId = getActiveUserId();
+  const users = readUsers();
+  const nextUsers = users.map((item) =>
+    item.id === activeUserId
+      ? {
+          ...item,
+          name: clampText(input.name, 80),
+          shopName: clampText(input.shopName, 80),
+          phone: clampText(input.phone, 30)
+        }
+      : item
+  );
+
+  writeUsers(nextUsers);
+  return toProfile(nextUsers.find((item) => item.id === activeUserId) ?? getActiveUserAccount());
 }
 
 export function hasSystemAdminSession() {

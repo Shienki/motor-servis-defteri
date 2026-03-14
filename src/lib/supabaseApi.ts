@@ -36,7 +36,8 @@ function mapProfile(row: any): Profile {
     id: row.id,
     username: row.username,
     name: row.name,
-    shopName: row.shop_name
+    shopName: row.shop_name,
+    phone: row.phone ?? ""
   };
 }
 
@@ -152,7 +153,8 @@ export async function registerUser(input: {
     id: data.user.id,
     username,
     name: input.name,
-    shop_name: input.shopName
+    shop_name: input.shopName,
+    phone: ""
   });
 
   if (profileError) {
@@ -163,7 +165,8 @@ export async function registerUser(input: {
     id: data.user.id,
     username,
     name: input.name,
-    shopName: input.shopName
+    shopName: input.shopName,
+    phone: ""
   };
 }
 
@@ -195,7 +198,8 @@ export async function signInUser(input: {
         id: data.user.id,
         username: input.username.trim().toLowerCase(),
         name: (data.user.user_metadata.name as string) || "",
-        shopName: (data.user.user_metadata.shop_name as string) || ""
+        shopName: (data.user.user_metadata.shop_name as string) || "",
+        phone: (data.user.user_metadata.phone as string) || ""
       };
 
   return { success: true, user };
@@ -208,12 +212,80 @@ export async function signOutUser() {
 
 export async function getCurrentUserProfile() {
   const client = requireSupabase();
-  const userId = await getAuthUserId();
-  const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user) {
+    throw authError ?? new Error("Oturum bulunamadı.");
+  }
+  const { data, error } = await client.from("profiles").select("*").eq("id", authData.user.id).single();
   if (error || !data) {
     throw error ?? new Error("Profil bulunamadı.");
   }
-  return mapProfile(data);
+  return {
+    ...mapProfile(data),
+    phone: data.phone ?? (authData.user.user_metadata.phone as string) ?? ""
+  };
+}
+
+export async function updateCurrentUserProfile(input: {
+  name: string;
+  shopName: string;
+  phone: string;
+}) {
+  const client = requireSupabase();
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user) {
+    throw authError ?? new Error("Oturum bulunamadı.");
+  }
+
+  const payload = {
+    name: input.name.trim(),
+    shopName: input.shopName.trim(),
+    phone: input.phone.trim()
+  };
+
+  const { error: metadataError } = await client.auth.updateUser({
+    data: {
+      name: payload.name,
+      shop_name: payload.shopName,
+      phone: payload.phone,
+      username: authData.user.user_metadata.username
+    }
+  });
+
+  if (metadataError) {
+    throw metadataError;
+  }
+
+  const { error: updateError } = await client
+    .from("profiles")
+    .update({
+      name: payload.name,
+      shop_name: payload.shopName,
+      phone: payload.phone
+    })
+    .eq("id", authData.user.id);
+
+  if (updateError) {
+    const { error: fallbackError } = await client
+      .from("profiles")
+      .update({
+        name: payload.name,
+        shop_name: payload.shopName
+      })
+      .eq("id", authData.user.id);
+
+    if (fallbackError) {
+      throw fallbackError;
+    }
+  }
+
+  return {
+    id: authData.user.id,
+    username: (authData.user.user_metadata.username as string) || "",
+    name: payload.name,
+    shopName: payload.shopName,
+    phone: payload.phone
+  };
 }
 
 export async function fetchMotorcycles() {

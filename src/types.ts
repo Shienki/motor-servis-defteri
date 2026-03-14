@@ -18,6 +18,7 @@ export type Profile = {
   name: string;
   shopName: string;
   username: string;
+  phone: string;
 };
 
 export type UserAccount = Profile & {
