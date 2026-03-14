@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Clock3,
+  Download,
   LogOut,
   Phone,
   QrCode,
@@ -153,6 +154,16 @@ export function AdminPanelPage() {
             >
               <LogOut size={18} />
               Çıkış yap
+            </Button>
+            <Button
+              variant="secondary"
+              className="gap-2"
+              onClick={() => {
+                window.open("/api/system-backup-export", "_blank", "noopener,noreferrer");
+              }}
+            >
+              <Download size={18} />
+              JSON yedek indir
             </Button>
           </div>
         </Panel>
