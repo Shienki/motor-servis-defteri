@@ -231,6 +231,32 @@ export function CameraScannerPage() {
         </div>
       ) : null}
 
+      {showManualFallback && mode === "customer-track" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-warning">Müşteri takibi</p>
+            <h3 className="mt-2 text-2xl font-bold text-ink">Kayıtlı QR bulunamadı</h3>
+            <p className="mt-2 text-sm leading-6 text-steel">Lütfen plakanızı elle giriniz.</p>
+            <div className="mt-5 space-y-3">
+              <Input
+                placeholder="Örnek: 34 ABC 123"
+                value={manualPlate}
+                onChange={(event) => setManualPlate(formatPlateDisplay(event.target.value))}
+              />
+              {manualError ? <p className="text-sm text-danger">{manualError}</p> : null}
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()} disabled={busy}>
+                {busy ? "Kontrol ediliyor..." : "Plaka ile devam et"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={resetScan}>
+                QR'ı tekrar dene
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Panel className="bg-ink text-white">
         <SectionTitle eyebrow="Canlı kamera" title={title} description={description} />
         {showManualFallback ? (
