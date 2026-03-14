@@ -678,6 +678,7 @@ export async function findMotorcycleByOfficialQr(qrValue: string) {
 export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: string) {
   const client = requireSupabase();
   const userId = await getAuthUserId();
+  const now = new Date().toISOString();
 
   const { data: conflict, error: conflictError } = await client
     .from("work_orders")
@@ -709,11 +710,22 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
     targetOrder = { id: created.id };
   }
 
+  const { error: clearOwnOrdersError } = await client
+    .from("work_orders")
+    .update({
+      qr_value: ""
+    })
+    .eq("user_id", userId)
+    .eq("motorcycle_id", motorcycleId)
+    .neq("id", targetOrder.id);
+
+  if (clearOwnOrdersError) throw clearOwnOrdersError;
+
   const { error: updateError } = await client
     .from("work_orders")
     .update({
       qr_value: qrValue,
-      updated_at: new Date().toISOString()
+      updated_at: now
     })
     .eq("id", targetOrder.id)
     .eq("user_id", userId);

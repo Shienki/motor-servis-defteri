@@ -1060,15 +1060,29 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
     targetOrder = await createTrackingWorkOrder(motorcycleId);
   }
 
-  const nextWorkOrders = readWorkOrders().map((item) =>
-    item.id === targetOrder?.id
-      ? {
-          ...item,
-          qrValue: safeQrValue,
-          updatedAt: new Date().toISOString()
-        }
-      : item
-  );
+  const nextUpdatedAt = new Date().toISOString();
+  const nextWorkOrders = readWorkOrders().map((item) => {
+    if (item.userId !== activeUserId) {
+      return item;
+    }
+
+    if (item.id === targetOrder?.id) {
+      return {
+        ...item,
+        qrValue: safeQrValue,
+        updatedAt: nextUpdatedAt
+      };
+    }
+
+    if (item.motorcycleId === motorcycleId) {
+      return {
+        ...item,
+        qrValue: ""
+      };
+    }
+
+    return item;
+  });
 
   writeWorkOrders(nextWorkOrders);
   return true;
