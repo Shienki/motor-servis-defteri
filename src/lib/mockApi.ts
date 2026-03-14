@@ -720,7 +720,7 @@ export async function signInSystemAdmin(input: {
       writeStoredAdminAuth(null);
       return {
         success: false,
-        error: typeof payload?.error === "string" ? payload.error : "Yönetici girişi şu an kullanılamıyor."
+        error: typeof payload?.error === "string" ? payload.error : "Y?netici giri?i ?u an kullan?lam?yor."
       };
     }
 
@@ -734,7 +734,7 @@ export async function signInSystemAdmin(input: {
     writeStoredAdminAuth(null);
     return {
       success: false,
-      error: "Yönetici girişi şu an kullanılamıyor."
+      error: "Y?netici giri? servisine ula??lamad?. Sayfay? yenileyip tekrar deneyin."
     };
   }
 }
