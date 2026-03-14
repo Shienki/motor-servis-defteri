@@ -51,11 +51,22 @@ function normalizePlate(plate: string) {
     .trim();
 }
 
-async function findMotorcycleByTokenOrPlate(token: string, plate: string) {
+async function findMotorcycleByTokenOrPlateOrQr(token: string, plate: string, qr: string) {
   if (token.startsWith("moto:")) {
     const motorcycleId = token.slice("moto:".length);
     const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
     return motorcycles[0] ?? null;
+  }
+
+  if (qr) {
+    const workOrders = await fetchRest(
+      `work_orders?qr_value=eq.${encodeURIComponent(qr)}&select=motorcycle_id&order=updated_at.desc&limit=1`
+    );
+    const motorcycleId = workOrders?.[0]?.motorcycle_id;
+    if (motorcycleId) {
+      const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
+      return motorcycles[0] ?? null;
+    }
   }
 
   if (plate) {
@@ -82,14 +93,15 @@ export default async function handler(req: any, res: any) {
 
   const token = typeof req.query?.token === "string" ? req.query.token.trim() : "";
   const plate = typeof req.query?.plate === "string" ? req.query.plate.trim() : "";
+  const qr = typeof req.query?.qr === "string" ? req.query.qr.trim() : "";
 
-  if (!token && !plate) {
-    res.status(400).json({ error: "Token veya plaka zorunlu." });
+  if (!token && !plate && !qr) {
+    res.status(400).json({ error: "Token, plaka veya QR zorunlu." });
     return;
   }
 
   try {
-    const motorcycle = await findMotorcycleByTokenOrPlate(token, plate);
+    const motorcycle = await findMotorcycleByTokenOrPlateOrQr(token, plate, qr);
     if (!motorcycle) {
       res.status(404).json({ error: "Takip kaydı bulunamadı." });
       return;

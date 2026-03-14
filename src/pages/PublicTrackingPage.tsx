@@ -2,7 +2,7 @@ import { Bike, CalendarDays, CircleDollarSign, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, Panel, SectionTitle } from "../components/Ui";
-import { fetchPublicTrackingByPlate, fetchPublicTrackingByToken } from "../lib/mockApi";
+import { fetchPublicTrackingByOfficialQr, fetchPublicTrackingByPlate, fetchPublicTrackingByToken } from "../lib/mockApi";
 import { formatCurrency, formatPlateDisplay, formatShortDate, workOrderStatusLabel, workOrderStatusTone } from "../lib/format";
 
 type TrackingData = Awaited<ReturnType<typeof fetchPublicTrackingByToken>>;
@@ -18,6 +18,8 @@ export function PublicTrackingPage() {
 
     const request = token.startsWith("plaka:")
       ? fetchPublicTrackingByPlate(decodeURIComponent(token.slice("plaka:".length)))
+      : token.startsWith("qr:")
+        ? fetchPublicTrackingByOfficialQr(decodeURIComponent(token.slice("qr:".length)))
       : fetchPublicTrackingByToken(token);
 
     request

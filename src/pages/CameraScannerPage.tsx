@@ -2,7 +2,12 @@ import { Camera, QrCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Input, Panel, SectionTitle } from "../components/Ui";
-import { bindOfficialQrToMotorcycle, fetchPublicTrackingByPlate, findMotorcycleByOfficialQr } from "../lib/mockApi";
+import {
+  bindOfficialQrToMotorcycle,
+  fetchPublicTrackingByOfficialQr,
+  fetchPublicTrackingByPlate,
+  findMotorcycleByOfficialQr
+} from "../lib/mockApi";
 import { formatPlateDisplay } from "../lib/format";
 
 type ScannerMode = "service-search" | "new-record-bind" | "motorcycle-bind" | "customer-track";
@@ -95,9 +100,9 @@ export function CameraScannerPage() {
           setStatus("QR okundu. Kayıt kontrol ediliyor.");
           setBusy(true);
           try {
-            const motorcycle = await findMotorcycleByOfficialQr(rawValue);
-            if (motorcycle) {
-              navigate(`/takip/moto:${motorcycle.id}`, { replace: true });
+            const result = await fetchPublicTrackingByOfficialQr(rawValue);
+            if (result) {
+              navigate(`/takip/qr:${encodeURIComponent(rawValue)}`, { replace: true });
               return;
             }
 

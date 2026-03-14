@@ -936,6 +936,20 @@ export async function fetchPublicTrackingByPlate(plate: string) {
   return response.json();
 }
 
+export async function fetchPublicTrackingByOfficialQr(qrValue: string) {
+  await wait(140);
+  const response = await fetch(`/api/public-tracking?qr=${encodeURIComponent(qrValue)}`, {
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache"
+    }
+  });
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
+
 export async function findMotorcycleByOfficialQr(qrValue: string) {
   if (integrationStatus.supabaseReady) {
     return supabaseApi.findMotorcycleByOfficialQr(qrValue);
