@@ -37,6 +37,17 @@ async function fetchRest(path: string) {
   return response.json();
 }
 
+async function fetchProfileInfo(userId: string) {
+  try {
+    const rows = await fetchRest(`profiles?id=eq.${encodeURIComponent(userId)}&select=shop_name,phone&limit=1`);
+    return rows?.[0] ?? null;
+  } catch {
+    const rows = await fetchRest(`profiles?id=eq.${encodeURIComponent(userId)}&select=shop_name&limit=1`);
+    const row = rows?.[0] ?? null;
+    return row ? { ...row, phone: "" } : null;
+  }
+}
+
 function defaultCustomerStatusNote(status: string | null) {
   if (status === "received") return "Motosiklet sıraya alındı.";
   if (status === "in_progress") return "Servis işlemi hazırlanıyor.";
@@ -107,14 +118,14 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const [workOrders, repairRows, profileRows] = await Promise.all([
+    const [workOrders, repairRows, profile] = await Promise.all([
       fetchRest(
         `work_orders?motorcycle_id=eq.${encodeURIComponent(
           motorcycle.id
         )}&status=neq.delivered&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&order=updated_at.desc`
       ),
       fetchRest(`repairs?motorcycle_id=eq.${encodeURIComponent(motorcycle.id)}&select=*&order=created_at.desc`),
-      fetchRest(`profiles?id=eq.${encodeURIComponent(motorcycle.user_id)}&select=shop_name&limit=1`)
+      fetchProfileInfo(motorcycle.user_id)
     ]);
 
     const workOrder: WorkOrderRow | null = workOrders[0] ?? null;
@@ -141,8 +152,8 @@ export default async function handler(req: any, res: any) {
     });
 
     res.status(200).json({
-      shopName: profileRows?.[0]?.shop_name ?? "Motor Servis",
-      shopPhone: "",
+      shopName: profile?.shop_name ?? "Motor Servis",
+      shopPhone: profile?.phone ?? "",
       motorcycle: {
         licensePlate: motorcycle.license_plate,
         model: motorcycle.model
