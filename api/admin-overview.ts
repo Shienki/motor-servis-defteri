@@ -21,14 +21,14 @@ function serviceHeaders() {
   };
 }
 
-async function fetchRest(path: string) {
+async function fetchRest(label: string, path: string) {
   const response = await fetch(restUrl(path), {
     headers: serviceHeaders()
   });
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`REST ${response.status}: ${body}`);
+    throw new Error(`${label} verisi alınamadı. REST ${response.status}: ${body}`);
   }
 
   return response.json();
@@ -47,13 +47,11 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const [profileRows, motorcycleRows, repairRows, workOrderRows, paymentRows] = await Promise.all([
-      fetchRest("profiles?select=*"),
-      fetchRest("motorcycles?select=*"),
-      fetchRest("repairs?select=*"),
-      fetchRest("work_orders?select=*"),
-      fetchRest("payment_entries?select=*")
-    ]);
+    const profileRows = await fetchRest("Profil", "profiles?select=*");
+    const motorcycleRows = await fetchRest("Motosiklet", "motorcycles?select=*");
+    const repairRows = await fetchRest("İşlem", "repairs?select=*");
+    const workOrderRows = await fetchRest("İş emri", "work_orders?select=*");
+    const paymentRows = await fetchRest("Tahsilat", "payment_entries?select=*");
 
     const paymentMap = new Map<string, any[]>();
     for (const payment of paymentRows ?? []) {
