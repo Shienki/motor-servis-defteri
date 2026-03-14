@@ -1091,7 +1091,7 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
 }
 export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
   if (integrationStatus.supabaseReady) {
-    const response = await fetch(`/api/admin-overview?ts=${Date.now()}`, {
+    const response = await fetch(`/api/system-admin-overview?ts=${Date.now()}`, {
       method: "GET",
       cache: "no-store",
       credentials: "include"
