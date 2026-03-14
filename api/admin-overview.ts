@@ -1,37 +1,12 @@
 import { requireAdmin } from "./_adminAuth";
+import { getSupabaseServiceClient } from "./_supabase";
 
-function getEnv(name: string) {
-  const value = String(process.env[name] || "").trim();
-  if (!value) {
-    throw new Error(`${name} tanımlı değil.`);
+async function fetchTable(label: string, query: PromiseLike<any>) {
+  const result = await query;
+  if (result?.error) {
+    throw new Error(`${label} verisi alınamadı: ${result.error.message}`);
   }
-  return value;
-}
-
-function restUrl(path: string) {
-  return `${getEnv("VITE_SUPABASE_URL")}/rest/v1/${path}`;
-}
-
-function serviceHeaders() {
-  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-  return {
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
-    "Content-Type": "application/json"
-  };
-}
-
-async function fetchRest(label: string, path: string) {
-  const response = await fetch(restUrl(path), {
-    headers: serviceHeaders()
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`${label} verisi alınamadı. REST ${response.status}: ${body}`);
-  }
-
-  return response.json();
+  return result?.data ?? [];
 }
 
 export default async function handler(req: any, res: any) {
@@ -47,37 +22,30 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const profileRows = await fetchRest("Profil", "profiles?select=*");
-    const motorcycleRows = await fetchRest("Motosiklet", "motorcycles?select=*");
-    const repairRows = await fetchRest("İşlem", "repairs?select=*");
-    const workOrderRows = await fetchRest("İş emri", "work_orders?select=*");
-    const paymentRows = await fetchRest("Tahsilat", "payment_entries?select=*");
+    const client = getSupabaseServiceClient();
+    const [profiles, motorcycles, repairs, workOrders] = await Promise.all([
+      fetchTable("Profil", client.from("profiles").select("*")),
+      fetchTable("Motosiklet", client.from("motorcycles").select("*")),
+      fetchTable("İşlem", client.from("repairs").select("*, payment_entries(*)")),
+      fetchTable("İş emri", client.from("work_orders").select("*"))
+    ]);
 
-    const paymentMap = new Map<string, any[]>();
-    for (const payment of paymentRows ?? []) {
-      const list = paymentMap.get(payment.repair_id) ?? [];
-      list.push(payment);
-      paymentMap.set(payment.repair_id, list);
-    }
-
-    const normalizedRepairs = (repairRows ?? []).map((item: any) => {
-      const entries = paymentMap.get(item.id) ?? [];
-      const paid = entries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
+    const mappedRepairs = (repairs ?? []).map((item: any) => {
+      const paymentEntries = Array.isArray(item.payment_entries) ? item.payment_entries : [];
+      const paid = paymentEntries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
       return {
         userId: item.user_id,
         remaining: Math.max(Number(item.total_cost ?? 0) - paid, 0)
       };
     });
 
-    const services = (profileRows ?? []).map((row: any) => {
-      const userRepairs = normalizedRepairs.filter((item: any) => item.userId === row.id);
-      const userWorkOrders = (workOrderRows ?? []).filter((item: any) => item.user_id === row.id);
+    const services = (profiles ?? []).map((row: any) => {
+      const userRepairs = mappedRepairs.filter((item: any) => item.userId === row.id);
+      const userWorkOrders = (workOrders ?? []).filter((item: any) => item.user_id === row.id);
       const qrBindings = userWorkOrders
         .filter((item: any) => item.qr_value)
         .map((item: any) => {
-          const motorcycle = (motorcycleRows ?? []).find(
-            (motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id
-          );
+          const motorcycle = (motorcycles ?? []).find((motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id);
           return {
             workOrderId: item.id,
             motorcycleId: item.motorcycle_id,
@@ -94,7 +62,7 @@ export default async function handler(req: any, res: any) {
         shopName: row.shop_name,
         ownerName: row.name,
         username: row.username || "",
-        motorcycleCount: (motorcycleRows ?? []).filter((item: any) => item.user_id === row.id).length,
+        motorcycleCount: (motorcycles ?? []).filter((item: any) => item.user_id === row.id).length,
         activeWorkOrderCount: userWorkOrders.filter((item: any) => item.status !== "delivered").length,
         readyCount: userWorkOrders.filter((item: any) => item.status === "ready").length,
         unpaidRepairCount: userRepairs.filter((item: any) => item.remaining > 0).length,
@@ -109,9 +77,9 @@ export default async function handler(req: any, res: any) {
       systemAdmin: adminSession,
       totals: {
         serviceCount: services.length,
-        motorcycleCount: (motorcycleRows ?? []).length,
-        activeWorkOrderCount: (workOrderRows ?? []).filter((item: any) => item.status !== "delivered").length,
-        readyCount: (workOrderRows ?? []).filter((item: any) => item.status === "ready").length,
+        motorcycleCount: (motorcycles ?? []).length,
+        activeWorkOrderCount: (workOrders ?? []).filter((item: any) => item.status !== "delivered").length,
+        readyCount: (workOrders ?? []).filter((item: any) => item.status === "ready").length,
         unpaidTotal: services.reduce((sum: number, item: any) => sum + item.unpaidTotal, 0)
       },
       services
