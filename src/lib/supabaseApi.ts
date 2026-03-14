@@ -11,6 +11,46 @@ import { currentUser } from "../data/mockData";
 import { canonicalPlate, formatPlateDisplay, normalizeWorkOrderStatus } from "./format";
 import { supabase } from "./supabase";
 
+function mapAuthErrorMessage(error: unknown, fallback = "İşlem tamamlanamadı.") {
+  const rawMessage =
+    typeof error === "string"
+      ? error
+      : error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : "";
+
+  const message = rawMessage.trim();
+  if (!message) {
+    return fallback;
+  }
+
+  const lower = message.toLowerCase();
+
+  if (lower.includes("new password should be different from the old password")) {
+    return "Yeni şifre eski şifreyle aynı olamaz.";
+  }
+  if (lower.includes("invalid login credentials")) {
+    return "Kullanıcı adı veya şifre hatalı.";
+  }
+  if (lower.includes("password should be at least")) {
+    return "Şifre en az 6 karakter olmalı.";
+  }
+  if (lower.includes("user already registered")) {
+    return "Bu kullanıcı adı zaten kayıtlı.";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "E-posta doğrulaması bekleniyor.";
+  }
+  if (lower.includes("auth session missing")) {
+    return "Oturum bilgisi bulunamadı. Lütfen yeniden giriş yap.";
+  }
+  if (lower.includes("same password")) {
+    return "Yeni şifre eski şifreyle aynı olamaz.";
+  }
+
+  return message;
+}
+
 function requireSupabase() {
   if (!supabase) {
     throw new Error("Supabase bağlantısı hazır değil.");
@@ -142,7 +182,7 @@ export async function registerUser(input: {
   });
 
   if (error) {
-    throw error;
+    throw new Error(mapAuthErrorMessage(error, "Kullanıcı oluşturulamadı."));
   }
 
   if (!data.user) {
@@ -253,7 +293,7 @@ export async function updateCurrentUserProfile(input: {
   });
 
   if (metadataError) {
-    throw metadataError;
+    throw new Error(mapAuthErrorMessage(metadataError, "Profil bilgileri güncellenemedi."));
   }
 
   const { error: updateError } = await client
@@ -275,7 +315,7 @@ export async function updateCurrentUserProfile(input: {
       .eq("id", authData.user.id);
 
     if (fallbackError) {
-      throw fallbackError;
+      throw new Error(mapAuthErrorMessage(fallbackError, "Profil bilgileri güncellenemedi."));
     }
   }
 
@@ -319,7 +359,7 @@ export async function changeCurrentUserPassword(input: {
   });
 
   if (updateError) {
-    throw updateError;
+    throw new Error(mapAuthErrorMessage(updateError, "Şifre güncellenemedi."));
   }
 
   return { success: true };
