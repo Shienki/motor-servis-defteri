@@ -55,7 +55,27 @@ export function CameraScannerPage() {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+          await new Promise<void>((resolve) => {
+            if (!videoRef.current) {
+              resolve();
+              return;
+            }
+
+            const video = videoRef.current;
+            const handleReady = () => {
+              video.play().catch(() => undefined).finally(() => resolve());
+            };
+
+            if (video.readyState >= 1) {
+              handleReady();
+              return;
+            }
+
+            video.onloadedmetadata = () => {
+              video.onloadedmetadata = null;
+              handleReady();
+            };
+          });
         }
         setCameraReady(true);
         setStatus("Resmi plaka QR'ı bekleniyor.");
@@ -293,7 +313,7 @@ export function CameraScannerPage() {
           </div>
         ) : (
           <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-black">
-            <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted autoPlay />
+            <video key={cameraSession} ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted autoPlay />
           </div>
         )}
 
