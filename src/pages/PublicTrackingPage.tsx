@@ -20,7 +20,7 @@ export function PublicTrackingPage() {
       ? fetchPublicTrackingByPlate(decodeURIComponent(token.slice("plaka:".length)))
       : token.startsWith("qr:")
         ? fetchPublicTrackingByOfficialQr(decodeURIComponent(token.slice("qr:".length)))
-      : fetchPublicTrackingByToken(token);
+        : fetchPublicTrackingByToken(token);
 
     request
       .then((result) => {
@@ -146,10 +146,12 @@ export function PublicTrackingPage() {
         </Panel>
 
         <Panel>
-          <SectionTitle eyebrow="Servis notu" title="Müşteriye açık bilgi" description="Servisten müşteriye iletilen kısa bilgi burada görünür." />
-          <div className="mt-4 rounded-2xl bg-sand px-4 py-4 text-sm text-steel">
-            {statusDescription}
-          </div>
+          <SectionTitle
+            eyebrow="Servis notu"
+            title="Müşteriye açık bilgi"
+            description="Servisten müşteriye iletilen kısa bilgi burada görünür."
+          />
+          <div className="mt-4 rounded-2xl bg-sand px-4 py-4 text-sm text-steel">{statusDescription}</div>
         </Panel>
       </div>
     </div>

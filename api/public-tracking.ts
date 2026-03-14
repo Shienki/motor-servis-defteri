@@ -1,53 +1,28 @@
+import { getSupabaseServiceClient } from "./_supabase";
 import { applyRateLimit, getClientIp } from "./_rateLimit";
+
+type MotorcycleRow = {
+  id: string;
+  user_id: string;
+  license_plate: string;
+  model: string | null;
+};
 
 type WorkOrderRow = {
   id: string;
   motorcycle_id: string;
-  complaint: string;
+  complaint: string | null;
   status: string;
   estimated_delivery_date: string | null;
   updated_at: string;
   customer_visible_note: string | null;
 };
 
-function getEnv(name: string) {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} tanımlı değil.`);
-  }
-  return value;
-}
-
-function serviceHeaders() {
-  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-  return {
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
-    "Content-Type": "application/json"
-  };
-}
-
-function restUrl(path: string) {
-  return `${getEnv("VITE_SUPABASE_URL")}/rest/v1/${path}`;
-}
-
-async function fetchRest(path: string) {
-  const response = await fetch(restUrl(path), { headers: serviceHeaders() });
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-  return response.json();
-}
-
-async function fetchProfileInfo(userId: string) {
-  try {
-    const rows = await fetchRest(`profiles?id=eq.${encodeURIComponent(userId)}&select=shop_name,phone&limit=1`);
-    return rows?.[0] ?? null;
-  } catch {
-    const rows = await fetchRest(`profiles?id=eq.${encodeURIComponent(userId)}&select=shop_name&limit=1`);
-    const row = rows?.[0] ?? null;
-    return row ? { ...row, phone: "" } : null;
-  }
+function normalizePlate(plate: string) {
+  return plate
+    .toLocaleUpperCase("tr-TR")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function defaultCustomerStatusNote(status: string | null) {
@@ -57,41 +32,110 @@ function defaultCustomerStatusNote(status: string | null) {
   return "Şu an aktif iş bulunmuyor.";
 }
 
-function normalizePlate(plate: string) {
-  return plate
-    .toLocaleUpperCase("tr-TR")
-    .replace(/\s+/g, " ")
-    .trim();
+async function fetchMotorcycleById(motorcycleId: string) {
+  const client = getSupabaseServiceClient();
+  const { data, error } = await client
+    .from("motorcycles")
+    .select("id,user_id,license_plate,model")
+    .eq("id", motorcycleId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Motosiklet okunamadı: ${error.message}`);
+  }
+
+  return (data as MotorcycleRow | null) ?? null;
+}
+
+async function fetchMotorcycleByQr(qrValue: string) {
+  const client = getSupabaseServiceClient();
+  const { data, error } = await client
+    .from("work_orders")
+    .select("motorcycle_id")
+    .eq("qr_value", qrValue)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`QR eşleşmesi okunamadı: ${error.message}`);
+  }
+
+  if (!data?.motorcycle_id) {
+    return null;
+  }
+
+  return fetchMotorcycleById(data.motorcycle_id);
+}
+
+async function fetchMotorcycleByPlate(plate: string) {
+  const client = getSupabaseServiceClient();
+  const formattedPlate = normalizePlate(plate);
+  const compactPlate = formattedPlate.replace(/\s+/g, "");
+
+  const formattedQuery = await client
+    .from("motorcycles")
+    .select("id,user_id,license_plate,model")
+    .eq("license_plate", formattedPlate)
+    .limit(1)
+    .maybeSingle();
+
+  if (formattedQuery.error) {
+    throw new Error(`Plaka sorgusu okunamadı: ${formattedQuery.error.message}`);
+  }
+
+  if (formattedQuery.data) {
+    return formattedQuery.data as MotorcycleRow;
+  }
+
+  if (compactPlate !== formattedPlate) {
+    const compactQuery = await client
+      .from("motorcycles")
+      .select("id,user_id,license_plate,model")
+      .eq("license_plate", compactPlate)
+      .limit(1)
+      .maybeSingle();
+
+    if (compactQuery.error) {
+      throw new Error(`Plaka sorgusu okunamadı: ${compactQuery.error.message}`);
+    }
+
+    return (compactQuery.data as MotorcycleRow | null) ?? null;
+  }
+
+  return null;
 }
 
 async function findMotorcycleByTokenOrPlateOrQr(token: string, plate: string, qr: string) {
   if (token.startsWith("moto:")) {
-    const motorcycleId = token.slice("moto:".length);
-    const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
-    return motorcycles[0] ?? null;
+    return fetchMotorcycleById(token.slice("moto:".length));
   }
 
   if (qr) {
-    const workOrders = await fetchRest(
-      `work_orders?qr_value=eq.${encodeURIComponent(qr)}&select=motorcycle_id&order=updated_at.desc&limit=1`
-    );
-    const motorcycleId = workOrders?.[0]?.motorcycle_id;
-    if (motorcycleId) {
-      const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
-      return motorcycles[0] ?? null;
-    }
+    return fetchMotorcycleByQr(qr);
   }
 
   if (plate) {
-    const formattedPlate = normalizePlate(plate);
-    const compactPlate = formattedPlate.replace(/\s+/g, "");
-    const motorcycles = await fetchRest(
-      `motorcycles?select=*&or=(license_plate.eq.${encodeURIComponent(formattedPlate)},license_plate.eq.${encodeURIComponent(compactPlate)})&limit=1`
-    );
-    return motorcycles[0] ?? null;
+    return fetchMotorcycleByPlate(plate);
   }
 
   return null;
+}
+
+async function fetchProfileInfo(userId: string) {
+  const client = getSupabaseServiceClient();
+  const withPhone = await client.from("profiles").select("shop_name,phone").eq("id", userId).limit(1).maybeSingle();
+
+  if (!withPhone.error) {
+    return withPhone.data ? { shop_name: withPhone.data.shop_name, phone: withPhone.data.phone ?? "" } : null;
+  }
+
+  const fallback = await client.from("profiles").select("shop_name").eq("id", userId).limit(1).maybeSingle();
+  if (fallback.error) {
+    throw new Error(`Profil bilgisi okunamadı: ${fallback.error.message}`);
+  }
+
+  return fallback.data ? { shop_name: fallback.data.shop_name, phone: "" } : null;
 }
 
 export default async function handler(req: any, res: any) {
@@ -125,32 +169,51 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const [workOrders, repairRows, profile] = await Promise.all([
-      fetchRest(
-        `work_orders?motorcycle_id=eq.${encodeURIComponent(
-          motorcycle.id
-        )}&status=neq.delivered&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&order=updated_at.desc`
-      ),
-      fetchRest(`repairs?motorcycle_id=eq.${encodeURIComponent(motorcycle.id)}&select=*&order=created_at.desc`),
+    const client = getSupabaseServiceClient();
+    const [workOrdersResponse, repairsResponse, profile] = await Promise.all([
+      client
+        .from("work_orders")
+        .select("id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note")
+        .eq("motorcycle_id", motorcycle.id)
+        .neq("status", "delivered")
+        .order("updated_at", { ascending: false })
+        .limit(1),
+      client
+        .from("repairs")
+        .select("id,description,total_cost,created_at")
+        .eq("motorcycle_id", motorcycle.id)
+        .order("created_at", { ascending: false }),
       fetchProfileInfo(motorcycle.user_id)
     ]);
 
-    const workOrder: WorkOrderRow | null = workOrders[0] ?? null;
-    const repairIds = (repairRows ?? []).map((item: any) => item.id);
-    const paymentRows = repairIds.length
-      ? await fetchRest(`payment_entries?repair_id=in.(${repairIds.map(encodeURIComponent).join(",")})&select=*`)
-      : [];
-
-    const paymentMap = new Map<string, any[]>();
-    for (const payment of paymentRows ?? []) {
-      const list = paymentMap.get(payment.repair_id) ?? [];
-      list.push(payment);
-      paymentMap.set(payment.repair_id, list);
+    if (workOrdersResponse.error) {
+      throw new Error(`İş durumu okunamadı: ${workOrdersResponse.error.message}`);
     }
 
-    const normalizedRepairs = (repairRows ?? []).map((item: any) => {
-      const payments = paymentMap.get(item.id) ?? [];
-      const paid = payments.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
+    if (repairsResponse.error) {
+      throw new Error(`İşlem geçmişi okunamadı: ${repairsResponse.error.message}`);
+    }
+
+    const workOrder = ((workOrdersResponse.data ?? [])[0] as WorkOrderRow | undefined) ?? null;
+    const repairs = repairsResponse.data ?? [];
+    const repairIds = repairs.map((item: any) => item.id);
+
+    const paymentEntriesResponse = repairIds.length
+      ? await client.from("payment_entries").select("repair_id,amount").in("repair_id", repairIds)
+      : { data: [], error: null };
+
+    if (paymentEntriesResponse.error) {
+      throw new Error(`Tahsilat bilgisi okunamadı: ${paymentEntriesResponse.error.message}`);
+    }
+
+    const paymentMap = new Map<string, number>();
+    for (const payment of paymentEntriesResponse.data ?? []) {
+      const current = paymentMap.get(payment.repair_id) ?? 0;
+      paymentMap.set(payment.repair_id, current + Number(payment.amount ?? 0));
+    }
+
+    const normalizedRepairs = repairs.map((item: any) => {
+      const paid = paymentMap.get(item.id) ?? 0;
       return {
         id: item.id,
         description: item.description,
@@ -163,11 +226,11 @@ export default async function handler(req: any, res: any) {
       shopPhone: profile?.phone ?? "",
       motorcycle: {
         licensePlate: motorcycle.license_plate,
-        model: motorcycle.model
+        model: motorcycle.model ?? "Model bilgisi girilmedi"
       },
       workOrder: workOrder
         ? {
-            complaint: workOrder.complaint,
+            complaint: workOrder.complaint ?? "Servis takip süreci",
             status: workOrder.status,
             estimatedDeliveryDate: workOrder.estimated_delivery_date,
             updatedAt: workOrder.updated_at,
@@ -176,9 +239,11 @@ export default async function handler(req: any, res: any) {
         : null,
       customerUpdates: [],
       latestRepair: normalizedRepairs[0] ?? null,
-      unpaidTotal: normalizedRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0)
+      unpaidTotal: normalizedRepairs.reduce((sum, item) => sum + item.remaining, 0)
     });
   } catch (error: any) {
-    res.status(503).json({ error: error?.message ?? "Takip servisi hazır değil." });
+    res.status(503).json({
+      error: typeof error?.message === "string" ? error.message : "Takip servisi hazır değil."
+    });
   }
 }
