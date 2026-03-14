@@ -1,0 +1,3 @@
+-- Remote baseline migration placeholder.
+-- This file exists only to align local migration history with the
+-- already-applied initial migration on the live Supabase project.
