@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
   try {
     const { username = "", password = "", rememberMe = true } = req.body ?? {};
     const normalizedUsername = String(username).trim().toLowerCase();
-    const normalizedPassword = String(password);
+    const normalizedPassword = String(password).trim();
     const admin = getAdminCredentials();
 
     if (normalizedUsername !== admin.username || normalizedPassword !== admin.password) {

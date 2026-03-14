@@ -17,22 +17,31 @@ export function AdminLoginPage() {
         className="space-y-5"
         onSubmit={async (event) => {
           event.preventDefault();
+          setError("");
+
           const result = await signInSystemAdmin({ username, password, rememberMe });
           if (!result.success) {
-            setError("Yönetici kullanıcı adı veya şifre hatalı.");
+            setError(typeof result.error === "string" ? result.error : "Yönetici girişi şu an kullanılamıyor.");
             return;
           }
+
           navigate("/yonetici/panel");
         }}
       >
         <div>
-          <Label>Yönetici Kullanıcı Adı</Label>
-          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Shienki" required />
+          <Label>Yönetici kullanıcı adı</Label>
+          <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="shienki" required />
         </div>
 
         <div>
           <Label>Şifre</Label>
-          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Şifrenizi girin" required />
+          <Input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Şifrenizi girin"
+            required
+          />
         </div>
 
         <label className="flex items-center gap-3 text-sm text-steel">
