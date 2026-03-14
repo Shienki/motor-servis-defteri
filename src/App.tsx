@@ -12,7 +12,6 @@ import { RecordsPage } from "./pages/RecordsPage";
 import { NewMotorcyclePage } from "./pages/NewMotorcyclePage";
 import { AccountPage } from "./pages/AccountPage";
 import { PublicTrackingPage } from "./pages/PublicTrackingPage";
-import { QrRedirectPage } from "./pages/QrRedirectPage";
 import { CameraScannerPage } from "./pages/CameraScannerPage";
 
 export default function App() {
@@ -23,8 +22,8 @@ export default function App() {
       <Route path="/yonetici/giris" element={<AdminLoginPage />} />
       <Route path="/yonetici/panel" element={<AdminPanelPage />} />
       <Route path="/kayit" element={<RegisterPage />} />
-      <Route path="/qr/:token" element={<QrRedirectPage />} />
       <Route path="/takip/:token" element={<PublicTrackingPage />} />
+      <Route path="/takip-kamera" element={<CameraScannerPage />} />
       <Route element={<AppLayout />}>
         <Route path="/panel" element={<DashboardPage />} />
         <Route path="/kamera" element={<CameraScannerPage />} />

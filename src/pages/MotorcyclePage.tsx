@@ -1,9 +1,6 @@
-﻿import { MessageSquareMore, Phone, Plus, QrCode, StickyNote, Wrench } from "lucide-react";
+import { Camera, MessageSquareMore, Phone, Plus, StickyNote, Trash2, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
-import QRCode from "qrcode";
-import { QrPreview } from "../components/QrPreview";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle } from "../components/Ui";
 import {
   addWorkOrderUpdate,
@@ -33,23 +30,12 @@ type DebtEditor = {
   newPaymentNote: string;
 };
 
-type TrackingCard = Awaited<ReturnType<typeof fetchMotorcycleTrackingCard>>;
-
 const quickStatusOptions: { value: WorkOrderStatus; label: string }[] = [
   { value: "received", label: "Sırada" },
   { value: "in_progress", label: "Hazırlanıyor" },
   { value: "ready", label: "Hazır" },
   { value: "delivered", label: "Teslim edildi" }
 ];
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function defaultCustomerStatusNote(status: WorkOrderStatus) {
   if (status === "received") return "Motosiklet sıraya alındı.";
@@ -90,17 +76,58 @@ function getRepairDescriptionLines(description: string) {
 
 export function MotorcyclePage() {
   const { motorcycleId = "" } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [motorcycle, setMotorcycle] = useState<Motorcycle | null>(null);
   const [history, setHistory] = useState<Repair[]>([]);
   const [editor, setEditor] = useState<DebtEditor | null>(null);
   const [showPaidHistory, setShowPaidHistory] = useState(false);
-  const [trackingCard, setTrackingCard] = useState<TrackingCard>(null);
+  const [trackingCard, setTrackingCard] = useState<Awaited<ReturnType<typeof fetchMotorcycleTrackingCard>>>(null);
   const [trackingStatus, setTrackingStatus] = useState<WorkOrderStatus>("received");
   const [trackingNote, setTrackingNote] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
   const [repairToDelete, setRepairToDelete] = useState<Repair | null>(null);
   const [deletingRepair, setDeletingRepair] = useState(false);
+
+  async function loadDetail() {
+    setLoading(true);
+    const [data, card] = await Promise.all([fetchMotorcycleDetail(motorcycleId), fetchMotorcycleTrackingCard(motorcycleId)]);
+    setMotorcycle(data.motorcycle);
+    setHistory(data.history);
+    setTrackingCard(card);
+    setTrackingStatus(card?.workOrder?.status ?? "received");
+    setTrackingNote(card?.workOrder?.customerVisibleNote ?? "");
+
+    const firstOpenDebt = data.history.find((item) => getRemainingAmount(item) > 0);
+    setEditor(
+      firstOpenDebt
+        ? {
+            repairId: firstOpenDebt.id,
+            paymentStatus: firstOpenDebt.paymentStatus,
+            newPaymentAmount: 0,
+            newPaymentDate: new Date().toISOString().slice(0, 10),
+            newPaymentNote: ""
+          }
+        : null
+    );
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    void loadDetail();
+  }, [motorcycleId]);
+
+  const unpaidRepairs = useMemo(() => history.filter((item) => getRemainingAmount(item) > 0), [history]);
+  const paidRepairs = useMemo(() => history.filter((item) => getRemainingAmount(item) === 0), [history]);
+  const displayedHistory = showPaidHistory ? history : unpaidRepairs;
+  const unpaidBalance = useMemo(
+    () => unpaidRepairs.reduce((sum, item) => sum + getRemainingAmount(item), 0),
+    [unpaidRepairs]
+  );
+  const selectedRepair = useMemo(
+    () => history.find((item) => item.id === editor?.repairId) ?? null,
+    [editor?.repairId, history]
+  );
 
   async function handleDeleteRepair(repair: Repair) {
     try {
@@ -116,52 +143,6 @@ export function MotorcyclePage() {
     }
   }
 
-  async function loadDetail() {
-    setLoading(true);
-    const [data, card] = await Promise.all([
-      fetchMotorcycleDetail(motorcycleId),
-      fetchMotorcycleTrackingCard(motorcycleId)
-    ]);
-    setMotorcycle(data.motorcycle);
-    setHistory(data.history);
-    setTrackingCard(card);
-    setTrackingStatus(card?.workOrder?.status ?? "received");
-    setTrackingNote(card?.workOrder?.customerVisibleNote ?? "");
-
-    const firstOpenDebt = data.history.find((item) => getRemainingAmount(item) > 0);
-    if (firstOpenDebt) {
-      setEditor({
-        repairId: firstOpenDebt.id,
-        paymentStatus: firstOpenDebt.paymentStatus,
-        newPaymentAmount: 0,
-        newPaymentDate: new Date().toISOString().slice(0, 10),
-        newPaymentNote: ""
-      });
-    } else {
-      setEditor(null);
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    void loadDetail();
-  }, [motorcycleId]);
-
-  const unpaidRepairs = useMemo(() => history.filter((item) => getRemainingAmount(item) > 0), [history]);
-  const paidRepairs = useMemo(() => history.filter((item) => getRemainingAmount(item) === 0), [history]);
-  const displayedHistory = showPaidHistory ? history : unpaidRepairs;
-  const origin = useMemo(() => (typeof window !== "undefined" ? window.location.origin : ""), []);
-
-  const unpaidBalance = useMemo(
-    () => unpaidRepairs.reduce((sum, item) => sum + getRemainingAmount(item), 0),
-    [unpaidRepairs]
-  );
-
-  const selectedRepair = useMemo(
-    () => history.find((item) => item.id === editor?.repairId) ?? null,
-    [editor?.repairId, history]
-  );
-
   function openDebtEditor(repair: Repair) {
     setEditor({
       repairId: repair.id,
@@ -173,12 +154,12 @@ export function MotorcyclePage() {
   }
 
   async function saveDebtEditor() {
-    if (!editor) return;
+    if (!editor || !selectedRepair) return;
 
     await updateRepairDebt(editor.repairId, {
       paymentStatus: editor.paymentStatus,
-      paymentDueDate: selectedRepair?.paymentDueDate ?? null,
-      notes: selectedRepair?.notes ?? "",
+      paymentDueDate: selectedRepair.paymentDueDate ?? null,
+      notes: selectedRepair.notes ?? "",
       newPayment:
         editor.newPaymentAmount > 0
           ? {
@@ -203,133 +184,30 @@ export function MotorcyclePage() {
     );
   }
 
-  async function printQrLabel() {
-    if (!trackingCard || !motorcycle) return;
-
-    const qrUrl = `${origin}/qr/${trackingCard.qrToken}`;
-    const qrImage = await QRCode.toDataURL(qrUrl, {
-      width: 720,
-      margin: 1,
-      color: {
-        dark: "#0f172a",
-        light: "#ffffff"
-      }
-    });
-
-    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-    const dataUrlToBlob = async (dataUrl: string) => {
-      const response = await fetch(dataUrl);
-      return await response.blob();
-    };
-
-    if (isMobile) {
-      const blob = await dataUrlToBlob(qrImage);
-      const file = new File([blob], `${motorcycle.licensePlate.replace(/\s+/g, "-")}-qr.png`, { type: "image/png" });
-
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: `${motorcycle.licensePlate} QR etiketi`,
-          text: `${motorcycle.licensePlate} için QR etiketi`,
-          files: [file]
-        });
-        return;
-      }
-
-      const objectUrl = URL.createObjectURL(blob);
-      window.open(objectUrl, "_blank", "noopener,noreferrer");
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-      return;
-    }
-
-    const printWindow = window.open("", "_blank", "width=420,height=420");
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html lang="tr">
-        <head>
-          <meta charset="utf-8" />
-          <title>QR Etiketi</title>
-          <style>
-            @page { margin: 10mm; }
-            html, body {
-              margin: 0;
-              padding: 0;
-              background: #fff;
-              font-family: Arial, sans-serif;
-            }
-            .label {
-              box-sizing: border-box;
-              width: 80mm;
-              min-height: 92mm;
-              margin: 0 auto;
-              border: 1px solid #cbd5e1;
-              border-radius: 12px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 10px;
-              padding: 8mm 6mm;
-            }
-            .plate {
-              font-size: 22px;
-              font-weight: 700;
-              letter-spacing: 0.18em;
-              color: #0f172a;
-              text-align: center;
-            }
-            .model {
-              font-size: 14px;
-              color: #334155;
-              text-align: center;
-            }
-            img {
-              width: 54mm;
-              height: 54mm;
-              object-fit: contain;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="label">
-            <div class="plate">${escapeHtml(motorcycle.licensePlate)}</div>
-            <img src="${qrImage}" alt="QR kodu" />
-            <div class="model">${escapeHtml(motorcycle.model)}</div>
-          </div>
-          <script>
-            window.onload = function () {
-              window.print();
-              setTimeout(function () { window.close(); }, 150);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  }
-
   async function saveTrackingStatus() {
     if (!motorcycle || savingTracking) return;
 
     setSavingTracking(true);
-    const existingWorkOrder = trackingCard?.workOrder ?? (await createTrackingWorkOrder(motorcycle.id));
+    try {
+      const existingWorkOrder = trackingCard?.workOrder ?? (await createTrackingWorkOrder(motorcycle.id));
 
-    await updateWorkOrderStatus(existingWorkOrder.id, {
-      status: trackingStatus,
-      customerVisibleNote: trackingStatus === "delivered" ? "" : trackingNote || defaultCustomerStatusNote(trackingStatus),
-      internalNote: existingWorkOrder.internalNote ?? "",
-      estimatedDeliveryDate: existingWorkOrder.estimatedDeliveryDate ?? null
-    });
+      await updateWorkOrderStatus(existingWorkOrder.id, {
+        status: trackingStatus,
+        customerVisibleNote: trackingStatus === "delivered" ? "" : trackingNote || defaultCustomerStatusNote(trackingStatus),
+        internalNote: existingWorkOrder.internalNote ?? "",
+        estimatedDeliveryDate: existingWorkOrder.estimatedDeliveryDate ?? null
+      });
 
-    await addWorkOrderUpdate({
-      workOrderId: existingWorkOrder.id,
-      message: `Durum güncellendi: ${workOrderStatusLabel(trackingStatus)}`,
-      visibleToCustomer: true
-    });
+      await addWorkOrderUpdate({
+        workOrderId: existingWorkOrder.id,
+        message: `Durum güncellendi: ${workOrderStatusLabel(trackingStatus)}`,
+        visibleToCustomer: true
+      });
 
-    await loadDetail();
-    setSavingTracking(false);
+      await loadDetail();
+    } finally {
+      setSavingTracking(false);
+    }
   }
 
   if (loading) {
@@ -353,15 +231,13 @@ export function MotorcyclePage() {
   }
 
   return (
-      <div className="space-y-5 px-4 py-5">
+    <div className="space-y-5 px-4 py-5">
       {repairToDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
             <p className="text-xs uppercase tracking-[0.24em] text-warning">İşlem sil</p>
             <h3 className="mt-2 text-2xl font-bold text-ink">Bu işlem silinsin mi?</h3>
-            <p className="mt-2 text-sm leading-6 text-steel">
-              Bu işlem geri alınamaz. Yanlış açıldıysa veya gereksiz kaydedildiyse silebilirsin.
-            </p>
+            <p className="mt-2 text-sm leading-6 text-steel">Bu işlem geri alınamaz. Yanlış açıldıysa burada silebilirsin.</p>
             <div className="mt-4 rounded-2xl bg-sand p-4">
               <p className="text-sm font-semibold text-ink">{getRepairDescriptionLines(repairToDelete.description)[0]}</p>
               <p className="mt-1 text-sm text-steel">
@@ -369,13 +245,7 @@ export function MotorcyclePage() {
               </p>
             </div>
             <div className="mt-6 flex gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1"
-                onClick={() => setRepairToDelete(null)}
-                disabled={deletingRepair}
-              >
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setRepairToDelete(null)} disabled={deletingRepair}>
                 Vazgeç
               </Button>
               <Button
@@ -390,6 +260,7 @@ export function MotorcyclePage() {
           </div>
         </div>
       ) : null}
+
       <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -422,7 +293,7 @@ export function MotorcyclePage() {
         <SectionTitle
           eyebrow="İş durumu"
           title={workOrderStatusLabel(trackingStatus)}
-          description="Usta burada işin hangi aşamada olduğunu seçer. Müşteri takip ekranında da aynı durum görünür."
+          description="Usta burada işin hangi aşamada olduğunu seçer. Müşteri ekranında da aynı durum görünür."
         />
         <div className="mt-4 flex flex-wrap gap-3">
           {quickStatusOptions.map((option) => {
@@ -433,9 +304,7 @@ export function MotorcyclePage() {
                 type="button"
                 onClick={() => setTrackingStatus(option.value)}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  active
-                    ? workOrderStatusTone(option.value)
-                    : "bg-sand text-steel ring-1 ring-slate/10 hover:ring-amber/40"
+                  active ? workOrderStatusTone(option.value) : "bg-sand text-steel ring-1 ring-slate/10 hover:ring-amber/40"
                 }`}
               >
                 {option.label}
@@ -477,78 +346,55 @@ export function MotorcyclePage() {
 
           <Panel>
             <SectionTitle
-              eyebrow="QR üret"
-              title={trackingCard ? "Müşteri takip erişimi hazır" : "QR hazırlanamadı"}
-              description={
-                trackingCard
-                  ? trackingCard.workOrder
-                    ? "QR kodunu buradan üretip yazdırabilirsin. Aktif iş varsa müşteri devam eden süreci görür."
-                    : "Bu motosiklet için QR hazır. Aktif iş yoksa müşteri bunu görür."
-                  : "Bu motosiklet için takip kartı hazırlanamadı."
-              }
+              eyebrow="Resmi plaka QR"
+              title={trackingCard?.officialQrBound ? "Resmi QR eşleştirildi" : "Resmi QR henüz bağlı değil"}
+              description="Custom QR sistemi kaldırıldı. Bu kayda plaka üzerindeki resmi QR bağlanır."
             />
-            {trackingCard ? (
-              <div className="mt-5 space-y-4">
-                <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
-                  <div className="flex justify-center">
-                    <QrPreview
-                      value={`${origin}/qr/${trackingCard.qrToken}`}
-                      alt={`${motorcycle.licensePlate} QR kodu`}
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <div className="rounded-3xl border border-dashed border-amber/40 bg-sand px-5 py-5">
-                      <div className="flex items-center gap-3 text-ink">
-                        <QrCode size={22} className="text-warning" />
-                        <div>
-                          <p className="font-semibold">Takip bağlantısı hazır</p>
-                          <p className="text-xs text-steel">QR okutulunca müşteri ekranı otomatik açılır.</p>
-                        </div>
-                      </div>
-                      {trackingCard.workOrder ? (
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(trackingCard.workOrder.status)}`}>
-                            {workOrderStatusLabel(trackingCard.workOrder.status)}
-                          </span>
-                          <span className="text-sm text-steel">
-                            Tahmini teslim: {formatShortDate(trackingCard.workOrder.estimatedDeliveryDate)}
-                          </span>
-                        </div>
-                      ) : (
-                        <p className="mt-4 text-sm text-steel">
-                          Şu an devam eden aktif iş yok. Müşteri QR okutursa bu bilgi gösterilir.
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Button className="w-full gap-2" variant="secondary" type="button" onClick={() => void printQrLabel()}>
-                        <QrCode size={18} />
-                        QR Yazdır
-                      </Button>
-                      <Link to={trackingCard.publicTrackingPath}>
-                        <Button className="w-full" variant="ghost">
-                          Müşteri Ekranını Aç
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
+            <div className="mt-5 rounded-3xl border border-dashed border-amber/40 bg-sand px-5 py-5">
+              <p className="font-semibold text-ink">
+                {trackingCard?.officialQrBound
+                  ? "Bu motosikletin resmi plaka QR eşleşmesi hazır."
+                  : "Bu motosiklet için resmi plaka QR henüz tanımlanmadı."}
+              </p>
+              <p className="mt-2 text-sm text-steel">
+                {trackingCard?.officialQrBound
+                  ? "Artık bu plakanın resmi QR'ı okutulunca doğru motosiklet ekranı ya da müşteri takip ekranı açılır."
+                  : "Bir kez resmi QR bağlarsan hem usta girişi hem müşteri takibi daha hızlı olur."}
+              </p>
+              {trackingCard?.workOrder ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <span className={`inline-flex rounded-full px-3 py-1 text-xs ${workOrderStatusTone(trackingCard.workOrder.status)}`}>
+                    {workOrderStatusLabel(trackingCard.workOrder.status)}
+                  </span>
+                  <span className="text-sm text-steel">
+                    Tahmini teslim: {formatShortDate(trackingCard.workOrder.estimatedDeliveryDate)}
+                  </span>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Button
+                className="w-full gap-2"
+                variant="secondary"
+                type="button"
+                onClick={() => navigate(`/kamera?hedef=bagla-resmi-qr&motorcycleId=${motorcycle.id}`)}
+              >
+                <Camera size={18} />
+                {trackingCard?.officialQrBound ? "Resmi QR'ı yenile" : "Resmi QR bağla"}
+              </Button>
+              <Link to={trackingCard?.publicTrackingPath ?? `/takip/moto:${motorcycle.id}`}>
+                <Button className="w-full" variant="ghost">
+                  Müşteri Ekranını Aç
+                </Button>
+              </Link>
+            </div>
           </Panel>
 
           <Panel>
-            <SectionTitle
-              eyebrow="Borç durumu"
-              title={formatCurrency(unpaidBalance)}
-              description="Borç kaydına dokun, tahsil günü ve ödeme hareketlerini güncelle."
-            />
-
+            <SectionTitle eyebrow="Borç durumu" title={formatCurrency(unpaidBalance)} description="Borç kaydına dokun, tahsilat ve kalan tutarı güncelle." />
             <div className="mt-4 space-y-3">
               {unpaidRepairs.length === 0 ? (
-                <div className="rounded-2xl bg-success/10 p-4 text-sm text-success">
-                  Bu motosiklet için açık borç kalmadı.
-                </div>
+                <div className="rounded-2xl bg-success/10 p-4 text-sm text-success">Bu motosiklet için açık borç kalmadı.</div>
               ) : (
                 unpaidRepairs.map((repair) => {
                   const paid = getPaidAmount(repair);
@@ -560,9 +406,7 @@ export function MotorcyclePage() {
                       type="button"
                       onClick={() => openDebtEditor(repair)}
                       className={`w-full rounded-2xl border p-4 text-left transition ${
-                        editor?.repairId === repair.id
-                          ? "border-amber bg-amber/10"
-                          : "border-slate/10 bg-sand hover:border-amber/40"
+                        editor?.repairId === repair.id ? "border-amber bg-amber/10" : "border-slate/10 bg-sand hover:border-amber/40"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -582,22 +426,24 @@ export function MotorcyclePage() {
                               </ul>
                             );
                           })()}
-                          <p className="mt-1 text-sm text-steel">Tahsil günü: {formatShortDate(repair.paymentDueDate)}</p>
                         </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex rounded-full px-3 py-1 text-xs ${paymentStatusTone(repair.paymentStatus)}`}>
-                          {paymentStatusLabel(repair.paymentStatus)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setRepairToDelete(repair)}
-                          className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                        >
-                          <Trash2 size={14} />
-                          İşlemi sil
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs ${paymentStatusTone(repair.paymentStatus)}`}>
+                            {paymentStatusLabel(repair.paymentStatus)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setRepairToDelete(repair);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                          >
+                            <Trash2 size={14} />
+                            İşlemi sil
+                          </button>
+                        </div>
                       </div>
-                    </div>
                       <div className="mt-3 grid gap-2 text-sm text-steel sm:grid-cols-3">
                         <p>Toplam: {formatCurrency(repair.totalCost)}</p>
                         <p>Alınan: {formatCurrency(paid)}</p>
@@ -612,12 +458,7 @@ export function MotorcyclePage() {
 
           {selectedRepair && editor ? (
             <Panel>
-              <SectionTitle
-                eyebrow="Borç düzenle"
-                title="Tahsilat ekle"
-                description="Kaydet sonrası ödeme alanı temizlenir ve durum tüm sayfalara yansır."
-              />
-
+              <SectionTitle eyebrow="Borç düzenle" title="Tahsilat ekle" description="Kaydet sonrası ödeme alanı temizlenir ve durum tüm sayfalara yansır." />
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl bg-sand p-4 text-sm text-steel">
                   <p className="font-medium text-ink">{selectedRepair.description}</p>
@@ -632,9 +473,7 @@ export function MotorcyclePage() {
                     className="min-h-12 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-sm outline-none focus:border-amber"
                     value={editor.paymentStatus}
                     onChange={(event) =>
-                      setEditor((current) =>
-                        current ? { ...current, paymentStatus: event.target.value as PaymentStatus } : current
-                      )
+                      setEditor((current) => (current ? { ...current, paymentStatus: event.target.value as PaymentStatus } : current))
                     }
                   >
                     <option value="unpaid">Ödenmedi</option>
@@ -650,22 +489,17 @@ export function MotorcyclePage() {
                       type="number"
                       value={editor.newPaymentAmount}
                       onChange={(event) =>
-                        setEditor((current) =>
-                          current ? { ...current, newPaymentAmount: Number(event.target.value || 0) } : current
-                        )
+                        setEditor((current) => (current ? { ...current, newPaymentAmount: Number(event.target.value || 0) } : current))
                       }
                     />
                   </div>
-
                   <div>
                     <Label>Ödeme tarihi</Label>
                     <Input
                       type="date"
                       value={editor.newPaymentDate}
                       onChange={(event) =>
-                        setEditor((current) =>
-                          current ? { ...current, newPaymentDate: event.target.value } : current
-                        )
+                        setEditor((current) => (current ? { ...current, newPaymentDate: event.target.value } : current))
                       }
                     />
                   </div>
@@ -678,9 +512,7 @@ export function MotorcyclePage() {
                     placeholder="Örnek: Elden 500 TL alındı"
                     value={editor.newPaymentNote}
                     onChange={(event) =>
-                      setEditor((current) =>
-                        current ? { ...current, newPaymentNote: event.target.value } : current
-                      )
+                      setEditor((current) => (current ? { ...current, newPaymentNote: event.target.value } : current))
                     }
                   />
                 </div>
@@ -693,11 +525,7 @@ export function MotorcyclePage() {
 
         <Panel>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <SectionTitle
-              eyebrow="Geçmiş işlemler"
-              title="Servis geçmişi"
-              description="Varsayılan olarak sadece açık işlemler gösterilir."
-            />
+            <SectionTitle eyebrow="Geçmiş işlemler" title="Servis geçmişi" description="Varsayılan olarak sadece açık işlemler gösterilir." />
             <Button type="button" variant="ghost" onClick={() => setShowPaidHistory((current) => !current)}>
               {showPaidHistory ? "Ödenenleri gizle" : `Ödenenleri göster (${paidRepairs.length})`}
             </Button>
@@ -779,8 +607,6 @@ export function MotorcyclePage() {
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm text-steel">Tahsil günü: {formatShortDate(repair.paymentDueDate)}</p>
-
                   <div className="mt-4 rounded-2xl border border-slate/10 p-4">
                     <p className="text-sm font-semibold text-ink">Alınan ödemeler</p>
                     {repair.paymentEntries.length === 0 ? (
@@ -799,9 +625,7 @@ export function MotorcyclePage() {
                                 <span>{formatShortDate(entry.paidAt)}</span>
                               </div>
                               <p className="mt-1">{entry.note}</p>
-                              <p className="mt-1 text-xs">
-                                Bu ödeme sonrası kalan: {formatCurrency(repair.totalCost - cumulativePaid)}
-                              </p>
+                              <p className="mt-1 text-xs">Bu ödeme sonrası kalan: {formatCurrency(repair.totalCost - cumulativePaid)}</p>
                             </div>
                           );
                         })}
@@ -813,17 +637,14 @@ export function MotorcyclePage() {
             })}
           </div>
           {displayedHistory.length === 0 ? (
-            <div className="mt-5 rounded-2xl bg-sand p-4 text-sm text-steel">
-              Gösterilecek işlem bulunmuyor.
-            </div>
+            <div className="mt-5 rounded-2xl bg-sand p-4 text-sm text-steel">Gösterilecek işlem bulunmuyor.</div>
           ) : null}
           <div className="mt-5 flex items-center gap-2 rounded-2xl border border-dashed border-slate/20 p-4 text-sm text-steel">
             <MessageSquareMore size={16} />
-            Yeni işlem ekleyince ses kaydı özet ekranına düşecek, kayıttan sonra buraya eklenecek.
+            Yeni işlem ekleyince özet ekrana düşer, onaydan sonra kayıt buraya eklenir.
           </div>
         </Panel>
       </div>
     </div>
   );
 }
-

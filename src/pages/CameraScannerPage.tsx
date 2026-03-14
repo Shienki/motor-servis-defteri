@@ -1,93 +1,31 @@
-import { Camera, QrCode, ScanLine } from "lucide-react";
+import { Camera, QrCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button, Panel, SectionTitle } from "../components/Ui";
-import { findMotorcycleByPlate, resolveQrRedirect } from "../lib/mockApi";
-import { formatPlateDisplay } from "../lib/format";
+import { Button, Input, Panel, SectionTitle } from "../components/Ui";
+import { bindOfficialQrToMotorcycle, findMotorcycleByOfficialQr } from "../lib/mockApi";
 
-function parseQrToken(value: string) {
-  const trimmed = value.trim();
+type ScannerMode = "service-search" | "new-record-bind" | "motorcycle-bind" | "customer-track";
 
-  if (trimmed.includes("/qr/")) {
-    return trimmed.split("/qr/")[1]?.split("?")[0] ?? "";
-  }
-
-  if (trimmed.includes("/takip/")) {
-    return trimmed.split("/takip/")[1]?.split("?")[0] ?? "";
-  }
-
-  return trimmed;
-}
-
-function extractPlateCandidate(rawText: string) {
-  const upper = rawText
-    .toLocaleUpperCase("tr-TR")
-    .replace(/İ/g, "I")
-    .replace(/[^A-Z0-9\s]/g, " ");
-
-  const ignoredTokens = new Set(["TR", "TURKIYE", "TÜRKİYE", "HONDA", "KONSUK", "CEVIZLI"]);
-  const tokenLines = upper
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.split(/\s+/).filter(Boolean).filter((token) => !ignoredTokens.has(token)));
-
-  const candidates = new Set<string>();
-  const compact = upper.replace(/[^A-Z0-9]/g, "");
-
-  for (const match of compact.match(/\d{1,2}[A-Z]{1,3}\d{2,4}/g) ?? []) {
-    candidates.add(match);
-  }
-
-  const tokens = tokenLines.flat();
-  for (let index = 0; index < tokens.length; index += 1) {
-    for (let size = 2; size <= 4; size += 1) {
-      const joined = tokens.slice(index, index + size).join("");
-      if (/^\d{1,2}[A-Z]{1,3}\d{2,4}$/.test(joined)) {
-        candidates.add(joined);
-      }
-    }
-  }
-
-  for (let index = 0; index < tokenLines.length - 1; index += 1) {
-    const top = tokenLines[index];
-    const bottom = tokenLines[index + 1];
-    if (!top.length || !bottom.length) continue;
-
-    const topJoined = top.join("");
-    const bottomJoined = bottom.join("");
-    const joined = `${topJoined}${bottomJoined}`;
-    if (/^\d{1,2}[A-Z]{1,3}\d{2,4}$/.test(joined)) {
-      candidates.add(joined);
-    }
-  }
-
-  const candidate = [...candidates]
-    .sort((left, right) => right.length - left.length)
-    .find((value) => /^\d{1,2}[A-Z]{1,3}\d{2,4}$/.test(value)) ?? "";
-
-  return formatPlateDisplay(candidate);
+function getScannerMode(rawMode: string | null): ScannerMode {
+  if (rawMode === "yeni-kayit-qr") return "new-record-bind";
+  if (rawMode === "bagla-resmi-qr") return "motorcycle-bind";
+  if (rawMode === "musteri-takip") return "customer-track";
+  return "service-search";
 }
 
 export function CameraScannerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const mode = getScannerMode(searchParams.get("hedef"));
+  const motorcycleId = searchParams.get("motorcycleId") ?? "";
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const solvedRef = useRef(false);
-  const ocrBusyRef = useRef(false);
-  const target = searchParams.get("hedef") ?? "arama";
-  const isNewRecordFlow = target === "yeni-kayit";
-  const [status, setStatus] = useState(
-    isNewRecordFlow
-      ? "Kamera açılıyor. Telefonu plakaya 1-2 saniye sabit tut."
-      : "Kamera açılıyor. QR için etiketi göster, plaka için telefonu sabit tut."
-  );
-  const [cameraReady, setCameraReady] = useState(false);
-  const [lastDetected, setLastDetected] = useState("");
+  const [status, setStatus] = useState("Kamera açılıyor. Resmi plaka QR'ını kadraja getir.");
   const [supportNote, setSupportNote] = useState("");
-  const [pendingPlate, setPendingPlate] = useState("");
+  const [cameraReady, setCameraReady] = useState(false);
+  const [pendingQr, setPendingQr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -105,13 +43,12 @@ export function CameraScannerPage() {
         }
 
         streamRef.current = stream;
-
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
-          setCameraReady(true);
-          setStatus(isNewRecordFlow ? "Plaka bekleniyor." : "QR veya plaka bekleniyor.");
         }
+        setCameraReady(true);
+        setStatus("Resmi plaka QR'ı bekleniyor.");
       } catch {
         setStatus("Kamera açılamadı. Tarayıcı iznini kontrol et.");
       }
@@ -124,16 +61,16 @@ export function CameraScannerPage() {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [isNewRecordFlow]);
+  }, []);
 
   useEffect(() => {
-    if (isNewRecordFlow || !cameraReady || !videoRef.current) {
+    if (!cameraReady || pendingQr) {
       return;
     }
 
     const BarcodeDetectorCtor = (globalThis as typeof globalThis & { BarcodeDetector?: any }).BarcodeDetector;
     if (!BarcodeDetectorCtor) {
-      setSupportNote("Bu cihazda yerel QR tarayıcı desteği yok. Plaka okuma yine çalışır.");
+      setSupportNote("Bu cihazda yerel QR tarama desteği yok. Başka tarayıcıyla yeniden dene.");
       return;
     }
 
@@ -149,176 +86,134 @@ export function CameraScannerPage() {
         if (!rawValue) return;
 
         solvedRef.current = true;
-        setLastDetected(rawValue);
-        setStatus("QR bulundu, yönlendiriyorum.");
-        const token = parseQrToken(rawValue);
-        const result = await resolveQrRedirect(token);
-        navigate(result?.path ?? "/panel", { replace: true });
+        setPendingQr(rawValue);
+        setStatus("QR okundu. Devam etmeden önce kontrol et.");
       } catch {
-        setSupportNote("QR algılama bu tarayıcıda sınırlı çalışıyor olabilir.");
+        setSupportNote("QR algılama bu tarayıcıda sınırlı olabilir.");
       }
     }, 350);
 
     return () => window.clearInterval(interval);
-  }, [cameraReady, isNewRecordFlow, navigate]);
+  }, [cameraReady, pendingQr]);
 
-  useEffect(() => {
-    if (!cameraReady || !videoRef.current || !canvasRef.current) {
-      return;
-    }
+  async function continueWithQr() {
+    if (!pendingQr || busy) return;
 
-    const interval = window.setInterval(async () => {
-      if (solvedRef.current || ocrBusyRef.current || !videoRef.current || !canvasRef.current) {
+    setBusy(true);
+    try {
+      if (mode === "motorcycle-bind" && motorcycleId) {
+        await bindOfficialQrToMotorcycle(motorcycleId, pendingQr);
+        navigate(`/motosiklet/${motorcycleId}`, { replace: true });
         return;
       }
 
-      const video = videoRef.current;
-      if (!video.videoWidth || !video.videoHeight) {
+      const motorcycle = await findMotorcycleByOfficialQr(pendingQr);
+      if (motorcycle) {
+        navigate(mode === "customer-track" ? `/takip/moto:${motorcycle.id}` : `/motosiklet/${motorcycle.id}`, {
+          replace: true
+        });
         return;
       }
 
-      ocrBusyRef.current = true;
-
-      try {
-        const canvas = canvasRef.current;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          return;
-        }
-
-        const cropWidth = Math.floor(video.videoWidth * 0.9);
-        const cropHeight = Math.floor(video.videoHeight * 0.42);
-        const offsetX = Math.floor((video.videoWidth - cropWidth) / 2);
-        const offsetY = Math.floor(video.videoHeight * 0.46);
-
-        canvas.width = cropWidth;
-        canvas.height = cropHeight;
-        context.filter = "grayscale(1) contrast(1.55) brightness(1.08)";
-        context.drawImage(video, offsetX, offsetY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-        context.filter = "none";
-
-        const Tesseract = await import("tesseract.js");
-        const result = await Tesseract.recognize(canvas, "eng", { logger: () => undefined });
-        const plate = extractPlateCandidate(result.data.text);
-
-        if (!plate) {
-          return;
-        }
-
-        solvedRef.current = true;
-        setLastDetected(plate);
-        setPendingPlate(plate);
-        setStatus(`Plaka okundu: ${plate}. Devam etmeden önce kontrol et.`);
-      } catch {
-        setSupportNote("Plaka okunamadıysa kamerayı biraz daha yaklaştırıp sabit tut.");
-      } finally {
-        ocrBusyRef.current = false;
+      if (mode === "new-record-bind" || mode === "service-search") {
+        navigate(`/motosiklet-yeni?resmiQr=${encodeURIComponent(pendingQr)}&yontem=qr`, { replace: true });
+        return;
       }
-    }, 1600);
 
-    return () => window.clearInterval(interval);
-  }, [cameraReady, navigate]);
-
-  async function confirmDetectedPlate() {
-    if (!pendingPlate.trim()) return;
-
-    const plate = formatPlateDisplay(pendingPlate);
-    const existing = await findMotorcycleByPlate(plate);
-    if (existing) {
-      navigate(`/motosiklet/${existing.id}`, { replace: true });
-      return;
+      setStatus("Bu resmi plaka QR'ı için kayıt bulunamadı.");
+      solvedRef.current = false;
+      setPendingQr("");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "QR işlenemedi.");
+      solvedRef.current = false;
+      setPendingQr("");
+    } finally {
+      setBusy(false);
     }
-
-    navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(plate)}&yontem=kamera`, { replace: true });
   }
 
-  function resetPlateScan() {
-    setPendingPlate("");
-    setLastDetected("");
+  function resetScan() {
+    setPendingQr("");
     solvedRef.current = false;
-    setStatus(isNewRecordFlow ? "Plaka bekleniyor." : "QR veya plaka bekleniyor.");
+    setStatus("Resmi plaka QR'ı bekleniyor.");
   }
+
+  const title =
+    mode === "customer-track"
+      ? "Müşteri QR takibi"
+      : mode === "motorcycle-bind"
+        ? "Resmi QR bağla"
+        : "Resmi plaka QR tara";
+
+  const description =
+    mode === "customer-track"
+      ? "Plaka üzerindeki resmi QR okutulunca müşteri takip ekranı açılır."
+      : mode === "motorcycle-bind"
+        ? "Bu motosiklete ait resmi plaka QR'ını bir kez okut, sonraki girişler hızlansın."
+        : "Usta tarafında plaka üstündeki resmi QR okutulur. Kayıtlıysa motor açılır, değilse yeni kayda bağlanır.";
 
   return (
     <div className="space-y-5 px-4 py-5">
-      {pendingPlate ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 backdrop-blur-sm">
+      {pendingQr ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-            <p className="text-xs uppercase tracking-[0.24em] text-warning">Plaka kontrolü</p>
-            <h3 className="mt-2 text-2xl font-bold text-ink">Okunan plaka doğru mu?</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-warning">Resmi plaka QR</p>
+            <h3 className="mt-2 text-2xl font-bold text-ink">Okunan QR doğru mu?</h3>
             <p className="mt-2 text-sm leading-6 text-steel">
-              Kamera harf veya rakamı yanlış okuyabilir. Devam etmeden önce plakayı kontrol et.
+              Resmi QR ilk kez bağlanacaksa burada kontrol et. Gerekirse tekrar tarayabilirsin.
             </p>
-            <input
-              value={pendingPlate}
-              onChange={(event) => setPendingPlate(formatPlateDisplay(event.target.value))}
-              className="mt-4 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-lg font-semibold tracking-[0.12em] text-ink outline-none ring-0"
+            <Input
+              className="mt-4 font-medium text-ink"
+              value={pendingQr}
+              onChange={(event) => setPendingQr(event.target.value)}
             />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Button type="button" variant="secondary" onClick={resetPlateScan}>
+              <Button type="button" variant="secondary" onClick={resetScan} disabled={busy}>
                 Tekrar tara
               </Button>
-              <Button type="button" onClick={() => void confirmDetectedPlate()}>
-                Onayla ve devam et
+              <Button type="button" onClick={() => void continueWithQr()} disabled={busy}>
+                {busy ? "İşleniyor..." : "Onayla ve devam et"}
               </Button>
             </div>
           </div>
         </div>
       ) : null}
-      <Panel className="bg-ink text-white">
-        <SectionTitle
-          eyebrow="Canlı kamera"
-          title={isNewRecordFlow ? "Plakayı okut" : "QR veya plakayı okut"}
-          description={
-            isNewRecordFlow
-              ? "Foto çekmeden canlı görüntüden sadece plaka okunur."
-              : "Foto çekmeden canlı görüntüden önce QR, bulunamazsa plaka okunur."
-          }
-        />
 
+      <Panel className="bg-ink text-white">
+        <SectionTitle eyebrow="Canlı kamera" title={title} description={description} />
         <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-black">
           <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted autoPlay />
-          <canvas ref={canvasRef} className="hidden" />
         </div>
 
-        <div className={`mt-4 grid gap-3 ${isNewRecordFlow ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
-          {!isNewRecordFlow ? (
-            <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
-              <div className="flex items-center gap-2 text-white">
-                <QrCode size={16} />
-                <span className="font-medium">QR öncelikli</span>
-              </div>
-              <p className="mt-2 text-white/75">QR görünürse anında doğru ekrana gider.</p>
-            </div>
-          ) : null}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
-              <ScanLine size={16} />
-              <span className="font-medium">Plaka okuma</span>
+              <QrCode size={16} />
+              <span className="font-medium">Sadece resmi QR</span>
             </div>
-            <p className="mt-2 text-white/75">
-              {isNewRecordFlow ? "Canlı görüntüden plaka aranır." : "QR yoksa plakadan devam edilir."}
-            </p>
+            <p className="mt-2 text-white/75">Bu akışta plaka OCR yok. Sadece plaka üstündeki QR okutulur.</p>
           </div>
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
               <Camera size={16} />
               <span className="font-medium">Canlı tarama</span>
             </div>
-            <p className="mt-2 text-white/75">Fotoğraf çekmeden otomatik çalışır.</p>
+            <p className="mt-2 text-white/75">Fotoğraf çekmeden doğrudan QR bulununca akış başlar.</p>
           </div>
         </div>
 
         <p className="mt-4 text-sm text-white/85">{status}</p>
-        {lastDetected ? <p className="mt-2 text-sm text-amber-200">Son algılanan: {lastDetected}</p> : null}
         {supportNote ? <p className="mt-2 text-sm text-white/70">{supportNote}</p> : null}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Button variant="secondary" onClick={() => navigate("/panel")}>
-            Panele dön
+          <Button
+            variant="secondary"
+            onClick={() => navigate(mode === "customer-track" ? "/giris" : "/panel")}
+          >
+            Geri dön
           </Button>
           <Button variant="ghost" onClick={() => navigate("/motosiklet-yeni?yontem=manuel")}>
-            Elle devam et
+            Elle plaka gir
           </Button>
         </div>
       </Panel>

@@ -23,7 +23,7 @@ export function DashboardPage() {
   const [recentRepairs, setRecentRepairs] = useState<Repair[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [unpaidTotal, setUnpaidTotal] = useState(0);
-  const [message, setMessage] = useState("Plakayı gir veya kamerayla okut.");
+  const [message, setMessage] = useState("Plakayı elle gir veya resmi plaka QR'ını okut.");
 
   async function loadDashboard() {
     const [dashboard, orders] = await Promise.all([fetchDashboardData(), fetchWorkOrders()]);
@@ -96,16 +96,16 @@ export function DashboardPage() {
           </Button>
           <Button className="gap-2 sm:min-w-44" variant="ghost" onClick={() => navigate("/kamera?hedef=arama")}>
             <Camera size={18} />
-            Kamerayla Tara
+            Resmi QR Tara
           </Button>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Button className="w-full" variant="secondary" onClick={() => navigate("/motosiklet-yeni?yontem=manuel")}>
             Yeni Kayıt Ekle
           </Button>
-          <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit")}>
+          <Button className="w-full gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit-qr")}>
             <Camera size={18} />
-            Kamerayla Yeni Kayıt
+            QR ile Yeni Kayıt
           </Button>
         </div>
         <p className="mt-4 text-sm text-white/85">{message}</p>

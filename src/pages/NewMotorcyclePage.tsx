@@ -2,7 +2,7 @@ import { Camera, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Input, Label, Panel, SectionTitle, Textarea } from "../components/Ui";
-import { createMotorcycle, findMotorcycleByPlate } from "../lib/mockApi";
+import { bindOfficialQrToMotorcycle, createMotorcycle, findMotorcycleByPlate } from "../lib/mockApi";
 import { canonicalPlate, formatPlateDisplay, lettersAndSpacesOnly, numbersOnly } from "../lib/format";
 import type { Motorcycle } from "../types";
 
@@ -13,6 +13,7 @@ export function NewMotorcyclePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("Önce plakayı yazabilir veya kamerayla okutabilirsin.");
   const [duplicateMotorcycle, setDuplicateMotorcycle] = useState<Motorcycle | null>(null);
+  const officialQr = searchParams.get("resmiQr")?.trim() ?? "";
   const [form, setForm] = useState({
     licensePlate: "",
     model: "",
@@ -34,7 +35,7 @@ export function NewMotorcyclePage() {
 
     if (searchParams.get("yontem") === "kamera" && !plate && !autoScanStarted.current) {
       autoScanStarted.current = true;
-      navigate("/kamera?hedef=yeni-kayit", { replace: true });
+      navigate("/kamera?hedef=yeni-kayit-qr", { replace: true });
     }
   }, [navigate, searchParams]);
 
@@ -60,6 +61,10 @@ export function NewMotorcyclePage() {
         kilometer: Number(form.kilometer || 0),
         notes: form.notes
       });
+
+      if (officialQr) {
+        await bindOfficialQrToMotorcycle(motorcycle.id, officialQr);
+      }
 
       setForm({
         licensePlate: "",
@@ -115,7 +120,7 @@ export function NewMotorcyclePage() {
         <SectionTitle
           eyebrow="Yeni kayıt"
           title="Yeni motosiklet kaydı aç"
-          description="Plakayı elle yaz veya kamerayla okut. Kayıt varsa önce onayın istenir."
+          description="Plakayı elle yaz. İstersen resmi plaka QR'ını da bu kayda bağlayabilirsin."
         />
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
           <Input
@@ -129,11 +134,16 @@ export function NewMotorcyclePage() {
               }))
             }
           />
-          <Button className="gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit")}>
+          <Button className="gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit-qr")}>
             <Camera size={18} />
-            Kamerayla Tara
+            Resmi QR Tara
           </Button>
         </div>
+        {officialQr ? (
+          <div className="mt-4 rounded-2xl bg-white/10 px-4 py-4 text-sm text-white/85">
+            Bu kayıt oluşturulunca okuttuğun resmi plaka QR'ı bu motosiklete bağlanacak.
+          </div>
+        ) : null}
         <p className="mt-4 text-sm text-sand/80">{message}</p>
       </Panel>
 

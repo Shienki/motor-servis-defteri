@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthShell } from "../components/AuthShell";
 import { Button, Input, Label } from "../components/Ui";
 import { signInUser } from "../lib/mockApi";
+import { formatPlateDisplay } from "../lib/format";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -21,6 +22,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
+  const [trackingPlate, setTrackingPlate] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
@@ -47,6 +49,32 @@ export function LoginPage() {
     <div className="relative">
       <AuthShell title="Giriş Yap" subtitle="Servis kayıtlarına ulaşmak için hesabına giriş yap.">
         <div className="space-y-4">
+          <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.22em] text-warning">Müşteri takibi</p>
+              <h3 className="text-lg font-semibold text-ink">Plaka ile takip et</h3>
+              <p className="text-sm text-steel">QR'ı olmayan müşteri plakasını yazarak servis durumunu görebilir.</p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+              <Input
+                placeholder="Örnek: 34 ABC 123"
+                value={trackingPlate}
+                onChange={(event) => setTrackingPlate(formatPlateDisplay(event.target.value))}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!trackingPlate.trim()}
+                onClick={() => navigate(`/takip/plaka:${encodeURIComponent(formatPlateDisplay(trackingPlate))}`)}
+              >
+                Takip et
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => navigate("/takip-kamera?hedef=musteri-takip")}>
+                QR okut
+              </Button>
+            </div>
+          </div>
+
           {!isStandalone() ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">

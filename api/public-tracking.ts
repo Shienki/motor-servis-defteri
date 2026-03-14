@@ -31,23 +31,43 @@ function restUrl(path: string) {
 
 async function fetchRest(path: string) {
   const response = await fetch(restUrl(path), { headers: serviceHeaders() });
-
   if (!response.ok) {
     throw new Error(await response.text());
   }
-
   return response.json();
-}
-
-function isMotorcycleToken(token: string) {
-  return token.startsWith("moto:");
 }
 
 function defaultCustomerStatusNote(status: string | null) {
   if (status === "received") return "Motosiklet sıraya alındı.";
   if (status === "in_progress") return "Servis işlemi hazırlanıyor.";
   if (status === "ready") return "Motosiklet hazır, teslim için bilgi alabilirsiniz.";
-  return "Şu an devam eden servis süreci yok.";
+  return "Şu an aktif iş bulunmuyor.";
+}
+
+function normalizePlate(plate: string) {
+  return plate
+    .toLocaleUpperCase("tr-TR")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function findMotorcycleByTokenOrPlate(token: string, plate: string) {
+  if (token.startsWith("moto:")) {
+    const motorcycleId = token.slice("moto:".length);
+    const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
+    return motorcycles[0] ?? null;
+  }
+
+  if (plate) {
+    const formattedPlate = normalizePlate(plate);
+    const compactPlate = formattedPlate.replace(/\s+/g, "");
+    const motorcycles = await fetchRest(
+      `motorcycles?select=*&or=(license_plate.eq.${encodeURIComponent(formattedPlate)},license_plate.eq.${encodeURIComponent(compactPlate)})&limit=1`
+    );
+    return motorcycles[0] ?? null;
+  }
+
+  return null;
 }
 
 export default async function handler(req: any, res: any) {
@@ -61,70 +81,35 @@ export default async function handler(req: any, res: any) {
   }
 
   const token = typeof req.query?.token === "string" ? req.query.token.trim() : "";
-  if (!token) {
-    res.status(400).json({ error: "Token zorunlu." });
+  const plate = typeof req.query?.plate === "string" ? req.query.plate.trim() : "";
+
+  if (!token && !plate) {
+    res.status(400).json({ error: "Token veya plaka zorunlu." });
     return;
   }
 
   try {
-    let motorcycle: any = null;
-    let workOrder: WorkOrderRow | null = null;
-
-    if (isMotorcycleToken(token)) {
-      const motorcycleId = token.slice("moto:".length);
-      const [motorcycles, workOrders] = await Promise.all([
-        fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`),
-        fetchRest(
-          `work_orders?motorcycle_id=eq.${encodeURIComponent(
-            motorcycleId
-          )}&status=neq.delivered&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&order=updated_at.desc`
-        )
-      ]);
-
-      motorcycle = motorcycles[0] ?? null;
-      workOrder = workOrders[0] ?? null;
-    } else {
-      const workOrders = await fetchRest(
-        `work_orders?public_tracking_token=eq.${encodeURIComponent(
-          token
-        )}&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&limit=1`
-      );
-      workOrder = workOrders[0] ?? null;
-
-      if (workOrder?.status === "delivered") {
-        workOrder = null;
-      }
-
-      const motorcycleId = workOrder?.motorcycle_id;
-      if (motorcycleId) {
-        const motorcycles = await fetchRest(`motorcycles?id=eq.${encodeURIComponent(motorcycleId)}&select=*`);
-        motorcycle = motorcycles[0] ?? null;
-      }
-    }
-
+    const motorcycle = await findMotorcycleByTokenOrPlate(token, plate);
     if (!motorcycle) {
       res.status(404).json({ error: "Takip kaydı bulunamadı." });
       return;
     }
 
-    const repairRows = await fetchRest(
-      `repairs?motorcycle_id=eq.${encodeURIComponent(motorcycle.id)}&select=*&order=created_at.desc`
-    );
+    const [workOrders, repairRows, profileRows] = await Promise.all([
+      fetchRest(
+        `work_orders?motorcycle_id=eq.${encodeURIComponent(
+          motorcycle.id
+        )}&status=neq.delivered&select=id,motorcycle_id,complaint,status,estimated_delivery_date,updated_at,customer_visible_note&order=updated_at.desc`
+      ),
+      fetchRest(`repairs?motorcycle_id=eq.${encodeURIComponent(motorcycle.id)}&select=*&order=created_at.desc`),
+      fetchRest(`profiles?id=eq.${encodeURIComponent(motorcycle.user_id)}&select=shop_name&limit=1`)
+    ]);
+
+    const workOrder: WorkOrderRow | null = workOrders[0] ?? null;
     const repairIds = (repairRows ?? []).map((item: any) => item.id);
     const paymentRows = repairIds.length
       ? await fetchRest(`payment_entries?repair_id=in.(${repairIds.map(encodeURIComponent).join(",")})&select=*`)
       : [];
-    const profileRows = await fetchRest(
-      `profiles?id=eq.${encodeURIComponent(motorcycle.user_id)}&select=shop_name&limit=1`
-    );
-    const updateRows =
-      workOrder?.id
-        ? await fetchRest(
-            `work_order_updates?work_order_id=eq.${encodeURIComponent(
-              workOrder.id
-            )}&visible_to_customer=is.true&select=id,message,created_at&order=created_at.desc`
-          )
-        : [];
 
     const paymentMap = new Map<string, any[]>();
     for (const payment of paymentRows ?? []) {
@@ -139,7 +124,6 @@ export default async function handler(req: any, res: any) {
       return {
         id: item.id,
         description: item.description,
-        paymentStatus: Math.max(Number(item.total_cost ?? 0) - paid, 0) === 0 ? "paid" : paid > 0 ? "partial" : "unpaid",
         remaining: Math.max(Number(item.total_cost ?? 0) - paid, 0)
       };
     });
@@ -160,11 +144,7 @@ export default async function handler(req: any, res: any) {
             customerVisibleNote: workOrder.customer_visible_note || defaultCustomerStatusNote(workOrder.status)
           }
         : null,
-      customerUpdates: (updateRows ?? []).map((item: any) => ({
-        id: item.id,
-        message: item.message,
-        createdAt: item.created_at
-      })),
+      customerUpdates: [],
       latestRepair: normalizedRepairs[0] ?? null,
       unpaidTotal: normalizedRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0)
     });

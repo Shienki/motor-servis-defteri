@@ -499,7 +499,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
       status: "received",
       estimated_delivery_date: null,
       public_tracking_token: crypto.randomUUID(),
-      qr_value: `moto:${motorcycleId}`,
+      qr_value: "",
       customer_visible_note: "",
       internal_note: ""
     })
@@ -508,6 +508,69 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
 
   if (error) throw error;
   return mapWorkOrder(data);
+}
+
+export async function findMotorcycleByOfficialQr(qrValue: string) {
+  const client = requireSupabase();
+  const userId = await getAuthUserId();
+  const { data, error } = await client
+    .from("work_orders")
+    .select("motorcycle_id, qr_value, motorcycles(*)")
+    .eq("user_id", userId)
+    .eq("qr_value", qrValue)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.motorcycles ? mapMotorcycle(data.motorcycles) : null;
+}
+
+export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: string) {
+  const client = requireSupabase();
+  const userId = await getAuthUserId();
+
+  const { data: conflict, error: conflictError } = await client
+    .from("work_orders")
+    .select("id,motorcycle_id")
+    .eq("user_id", userId)
+    .eq("qr_value", qrValue)
+    .neq("motorcycle_id", motorcycleId)
+    .limit(1)
+    .maybeSingle();
+
+  if (conflictError) throw conflictError;
+  if (conflict) {
+    throw new Error("Bu resmi plaka QR'ı başka bir motosiklete bağlı.");
+  }
+
+  let { data: targetOrder, error: orderError } = await client
+    .from("work_orders")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("motorcycle_id", motorcycleId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (orderError) throw orderError;
+
+  if (!targetOrder) {
+    const created = await createTrackingWorkOrder(motorcycleId);
+    targetOrder = { id: created.id };
+  }
+
+  const { error: updateError } = await client
+    .from("work_orders")
+    .update({
+      qr_value: qrValue,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", targetOrder.id)
+    .eq("user_id", userId);
+
+  if (updateError) throw updateError;
+  return true;
 }
 
 export async function updateWorkOrderStatus(

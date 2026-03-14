@@ -844,7 +844,7 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
       motorcycle,
       history,
       workOrder,
-      qrToken: `moto:${motorcycle.id}`,
+      officialQrBound: Boolean(workOrders.find((item) => item.motorcycleId === motorcycleId && item.qrValue)),
       publicTrackingPath: `/takip/moto:${motorcycle.id}`
     };
   }
@@ -867,7 +867,7 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
   return {
     motorcycle,
     workOrder,
-    qrToken: `moto:${motorcycle.id}`,
+    officialQrBound: Boolean(workOrders.find((item) => item.motorcycleId === motorcycleId && item.qrValue)),
     publicTrackingPath: `/takip/moto:${motorcycle.id}`
   };
 }
@@ -893,7 +893,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
       status: "received",
     estimatedDeliveryDate: null,
     publicTrackingToken: crypto.randomUUID(),
-    qrValue: `moto:${motorcycleId}`,
+    qrValue: "",
     customerVisibleNote: "",
     internalNote: "",
     createdAt: new Date().toISOString(),
@@ -922,27 +922,81 @@ export async function fetchPublicTrackingByToken(token: string) {
   return response.json();
 }
 
-export async function resolveQrRedirect(token: string) {
-  await wait(80);
-  const safeToken = clampText(token, 120);
-  const authToken = await getAccessToken();
-  const response = await fetch(`/api/qr-resolve?token=${encodeURIComponent(safeToken)}`, {
-    headers: authToken
-      ? {
-          Authorization: `Bearer ${authToken}`
-        }
-      : undefined
+export async function fetchPublicTrackingByPlate(plate: string) {
+  await wait(140);
+  const response = await fetch(`/api/public-tracking?plate=${encodeURIComponent(formatPlateDisplay(plate))}`, {
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache"
+    }
   });
   if (!response.ok) {
-    if (safeToken.startsWith("moto:")) {
-      const motorcycleId = safeToken.slice("moto:".length);
-      return {
-        path: authToken ? `/motosiklet/${motorcycleId}` : `/takip/${safeToken}`
-      };
-    }
     return null;
   }
   return response.json();
+}
+
+export async function findMotorcycleByOfficialQr(qrValue: string) {
+  if (integrationStatus.supabaseReady) {
+    return supabaseApi.findMotorcycleByOfficialQr(qrValue);
+  }
+
+  await wait(100);
+  const activeUserId = getActiveUserId();
+  const matchingOrder = readWorkOrders()
+    .filter((item) => item.userId === activeUserId && item.qrValue === clampText(qrValue, 160))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+
+  if (!matchingOrder) {
+    return null;
+  }
+
+  return readMotorcycles().find((item) => item.id === matchingOrder.motorcycleId && item.userId === activeUserId) ?? null;
+}
+
+export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: string) {
+  if (integrationStatus.supabaseReady) {
+    return supabaseApi.bindOfficialQrToMotorcycle(motorcycleId, qrValue);
+  }
+
+  await wait(120);
+  const activeUserId = getActiveUserId();
+  const safeQrValue = clampText(qrValue, 160);
+  const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
+
+  if (!motorcycle) {
+    throw new Error("Bu motosiklet bulunamadı.");
+  }
+
+  const conflictingOrder = readWorkOrders().find(
+    (item) => item.userId === activeUserId && item.qrValue === safeQrValue && item.motorcycleId !== motorcycleId
+  );
+
+  if (conflictingOrder) {
+    throw new Error("Bu resmi plaka QR'ı başka bir motosiklete bağlı.");
+  }
+
+  let targetOrder =
+    readWorkOrders()
+      .filter((item) => item.userId === activeUserId && item.motorcycleId === motorcycleId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+
+  if (!targetOrder) {
+    targetOrder = await createTrackingWorkOrder(motorcycleId);
+  }
+
+  const nextWorkOrders = readWorkOrders().map((item) =>
+    item.id === targetOrder?.id
+      ? {
+          ...item,
+          qrValue: safeQrValue,
+          updatedAt: new Date().toISOString()
+        }
+      : item
+  );
+
+  writeWorkOrders(nextWorkOrders);
+  return true;
 }
 
 export async function fetchSystemAdminOverview(): Promise<SystemAdminOverview> {
