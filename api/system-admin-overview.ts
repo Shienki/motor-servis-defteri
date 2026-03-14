@@ -43,7 +43,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const admin = requireAdmin(req);
+    const admin = await requireAdmin(req);
     if (!admin) {
       res.status(401).json({ error: "Yönetici oturumu bulunamadı." });
       return;

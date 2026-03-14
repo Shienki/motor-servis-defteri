@@ -1,5 +1,3 @@
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
-
 const COOKIE_NAME = "msd_admin_session";
 
 function requireEnv(name: string) {
@@ -14,8 +12,15 @@ function getAdminSecret() {
   return requireEnv("ADMIN_SESSION_SECRET");
 }
 
-function createSignature(payload: string) {
-  return createHmac("sha256", getAdminSecret()).update(payload).digest("hex");
+function toHex(buffer: ArrayBuffer) {
+  return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function createSignature(payload: string) {
+  const secret = new TextEncoder().encode(getAdminSecret());
+  const key = await crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return toHex(signature);
 }
 
 export function getAdminCredentials() {
@@ -25,12 +30,12 @@ export function getAdminCredentials() {
   };
 }
 
-export function createAdminToken(rememberMe = true) {
+export async function createAdminToken(rememberMe = true) {
   const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
   const expiresAt = Date.now() + maxAge * 1000;
-  const nonce = randomBytes(12).toString("hex");
+  const nonce = crypto.randomUUID().replace(/-/g, "");
   const payload = `${getAdminCredentials().username}.${expiresAt}.${nonce}`;
-  const signature = createSignature(payload);
+  const signature = await createSignature(payload);
   return `${payload}.${signature}`;
 }
 
@@ -51,7 +56,7 @@ export function readAdminToken(req: any) {
   return "";
 }
 
-export function verifyAdminToken(token: string) {
+export async function verifyAdminToken(token: string) {
   const parts = token.split(".");
   if (parts.length !== 4) {
     return null;
@@ -65,11 +70,8 @@ export function verifyAdminToken(token: string) {
   }
 
   const payload = `${username}.${expiresAtRaw}.${nonce}`;
-  const expectedSignature = createSignature(payload);
-  const providedBuffer = Buffer.from(signature, "hex");
-  const expectedBuffer = Buffer.from(expectedSignature, "hex");
-
-  if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+  const expectedSignature = await createSignature(payload);
+  if (signature !== expectedSignature) {
     return null;
   }
 
@@ -88,9 +90,9 @@ export function clearAdminCookie(res: any) {
   res.setHeader("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Secure; Priority=High`);
 }
 
-export function requireAdmin(req: any) {
+export async function requireAdmin(req: any) {
   const token = readAdminToken(req);
-  const verified = verifyAdminToken(token);
+  const verified = await verifyAdminToken(token);
   if (!verified) {
     return null;
   }

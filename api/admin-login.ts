@@ -70,7 +70,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    setAdminCookie(res, createAdminToken(rememberMe), rememberMe);
+    setAdminCookie(res, await createAdminToken(rememberMe), rememberMe);
     res.status(200).json({
       success: true,
       admin: {
