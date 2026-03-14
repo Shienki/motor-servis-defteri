@@ -1,12 +1,58 @@
+import https from "node:https";
+import { URL } from "node:url";
 import { requireAdmin } from "./_adminAuth";
-import { getSupabaseServiceClient } from "./_supabase";
 
-async function fetchTable(label: string, query: PromiseLike<any>) {
-  const result = await query;
-  if (result?.error) {
-    throw new Error(`${label} verisi alınamadı: ${result.error.message}`);
+function getEnv(name: string) {
+  const value = String(process.env[name] || "").trim();
+  if (!value) {
+    throw new Error(`${name} tanımlı değil.`);
   }
-  return result?.data ?? [];
+  return value;
+}
+
+function requestJson(path: string) {
+  const baseUrl = getEnv("VITE_SUPABASE_URL");
+  const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const url = new URL(`/rest/v1/${path}`, baseUrl);
+
+  return new Promise<any[]>((resolve, reject) => {
+    const req = https.request(
+      url,
+      {
+        method: "GET",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          Accept: "application/json"
+        }
+      },
+      (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+        res.on("end", () => {
+          if ((res.statusCode ?? 500) >= 400) {
+            reject(new Error(`REST ${res.statusCode}: ${body}`));
+            return;
+          }
+
+          try {
+            resolve(body ? JSON.parse(body) : []);
+          } catch (error: any) {
+            reject(new Error(`JSON parse hatası: ${error?.message ?? "Bilinmeyen hata"}`));
+          }
+        });
+      }
+    );
+
+    req.on("error", (error) => {
+      reject(error);
+    });
+
+    req.end();
+  });
 }
 
 export default async function handler(req: any, res: any) {
@@ -22,17 +68,24 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const client = getSupabaseServiceClient();
-    const [profiles, motorcycles, repairs, workOrders] = await Promise.all([
-      fetchTable("Profil", client.from("profiles").select("*")),
-      fetchTable("Motosiklet", client.from("motorcycles").select("*")),
-      fetchTable("İşlem", client.from("repairs").select("*, payment_entries(*)")),
-      fetchTable("İş emri", client.from("work_orders").select("*"))
+    const [profiles, motorcycles, repairs, workOrders, paymentEntries] = await Promise.all([
+      requestJson("profiles?select=*"),
+      requestJson("motorcycles?select=*"),
+      requestJson("repairs?select=*"),
+      requestJson("work_orders?select=*"),
+      requestJson("payment_entries?select=*")
     ]);
 
-    const mappedRepairs = (repairs ?? []).map((item: any) => {
-      const paymentEntries = Array.isArray(item.payment_entries) ? item.payment_entries : [];
-      const paid = paymentEntries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
+    const paymentMap = new Map<string, any[]>();
+    for (const payment of paymentEntries ?? []) {
+      const list = paymentMap.get(payment.repair_id) ?? [];
+      list.push(payment);
+      paymentMap.set(payment.repair_id, list);
+    }
+
+    const normalizedRepairs = (repairs ?? []).map((item: any) => {
+      const entries = paymentMap.get(item.id) ?? [];
+      const paid = entries.reduce((sum: number, entry: any) => sum + Number(entry.amount ?? 0), 0);
       return {
         userId: item.user_id,
         remaining: Math.max(Number(item.total_cost ?? 0) - paid, 0)
@@ -40,7 +93,7 @@ export default async function handler(req: any, res: any) {
     });
 
     const services = (profiles ?? []).map((row: any) => {
-      const userRepairs = mappedRepairs.filter((item: any) => item.userId === row.id);
+      const userRepairs = normalizedRepairs.filter((item: any) => item.userId === row.id);
       const userWorkOrders = (workOrders ?? []).filter((item: any) => item.user_id === row.id);
       const qrBindings = userWorkOrders
         .filter((item: any) => item.qr_value)
