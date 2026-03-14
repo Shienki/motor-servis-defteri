@@ -10,6 +10,23 @@ const repairTemplates = {
   scooter: {
     label: "Scooter",
     hint: "Varyator, kayis ve gunluk servis isleri",
+    presets: [
+      {
+        label: "Bakim paketi",
+        description: "Yag, filtre ve buji bakimi",
+        items: ["Motor yagi degisti", "Yag filtresi degisti", "Hava filtresi degisti", "Buji degisti"]
+      },
+      {
+        label: "Varyator bakimi",
+        description: "Kayis ve debriyaj tarafi",
+        items: ["Kayis degisti", "Varyator seti degisti", "Debriyaj balatasi degisti"]
+      },
+      {
+        label: "On fren isi",
+        description: "On fren ve hidrolik tarafi",
+        items: ["On fren balatasi degisti", "Fren hidroligi degisti"]
+      }
+    ],
     quickPicks: [
       "Motor yagi degisti",
       "Kayis degisti",
@@ -44,6 +61,23 @@ const repairTemplates = {
   motorcycle: {
     label: "Motosiklet",
     hint: "Zincir, disli, on takim ve motor isleri",
+    presets: [
+      {
+        label: "Bakim paketi",
+        description: "Yag, filtre ve buji bakimi",
+        items: ["Motor yagi degisti", "Yag filtresi degisti", "Hava filtresi degisti", "Buji degisti"]
+      },
+      {
+        label: "Alt takim",
+        description: "Kece, burc ve rulman tarafi",
+        items: ["Kece degisti", "Burc degisti", "Rulman degisti"]
+      },
+      {
+        label: "Zincir disli",
+        description: "Aktarma grubu toplu secim",
+        items: ["Zincir ayari yapildi", "Zincir degisti", "Disli seti degisti"]
+      }
+    ],
     quickPicks: [
       "Motor yagi degisti",
       "Zincir ayari yapildi",
@@ -117,6 +151,10 @@ export function AddRepairPage() {
 
   function toggleChecklistItem(item: string) {
     setSelectedChecklistItems((current) => (current.includes(item) ? current.filter((value) => value !== item) : [...current, item]));
+  }
+
+  function applyPreset(items: readonly string[]) {
+    setSelectedChecklistItems((current) => Array.from(new Set([...current, ...items])));
   }
 
   function resetForm() {
@@ -213,6 +251,28 @@ export function AddRepairPage() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-slate/10 bg-sand p-4">
+                <p className="text-sm font-semibold text-ink">Hazir paketler</p>
+                <div className="mt-3 space-y-3">
+                  {activeTemplate.presets.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => applyPreset(preset.items)}
+                      className="w-full rounded-[20px] border border-slate/10 bg-white px-4 py-4 text-left transition hover:border-amber/40 hover:bg-amber/5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-ink">{preset.label}</p>
+                          <p className="mt-1 text-sm leading-6 text-steel">{preset.description}</p>
+                        </div>
+                        <span className="rounded-full bg-sand px-3 py-1 text-xs font-medium text-steel">{preset.items.length} is</span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
