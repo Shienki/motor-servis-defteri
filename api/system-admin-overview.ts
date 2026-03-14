@@ -1,4 +1,5 @@
-const COOKIE_NAME = "msd_admin_session";
+import { requireAdmin } from "./_adminAuth";
+import { applyApiSecurityHeaders } from "./_security";
 
 function requireEnv(name: string) {
   const value = String(process.env[name] || "").trim();
@@ -6,32 +7,6 @@ function requireEnv(name: string) {
     throw new Error(`${name} tanımlı değil.`);
   }
   return value;
-}
-
-function readAdminToken(req: any) {
-  const cookieHeader = String(req?.headers?.cookie || "");
-  const cookies = cookieHeader
-    .split(";")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  for (const cookie of cookies) {
-    const [name, ...rest] = cookie.split("=");
-    if (name === COOKIE_NAME) {
-      return decodeURIComponent(rest.join("="));
-    }
-  }
-
-  return "";
-}
-
-function getAdminSession() {
-  const username = requireEnv("ADMIN_USERNAME").toLowerCase();
-  const sessionSecret = requireEnv("ADMIN_SESSION_SECRET");
-  return {
-    username,
-    token: `admin:${sessionSecret}`
-  };
 }
 
 async function requestJson(path: string) {
@@ -60,16 +35,16 @@ function getLatestIso(values: Array<string | null | undefined>) {
 }
 
 export default async function handler(req: any, res: any) {
+  applyApiSecurityHeaders(res, { privateResponse: true });
+
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
   try {
-    const admin = getAdminSession();
-    const token = readAdminToken(req);
-
-    if (!token || token !== admin.token) {
+    const admin = requireAdmin(req);
+    if (!admin) {
       res.status(401).json({ error: "Yönetici oturumu bulunamadı." });
       return;
     }
@@ -169,7 +144,7 @@ export default async function handler(req: any, res: any) {
     res.status(200).json({
       systemAdmin: {
         username: admin.username,
-        displayName: admin.username
+        displayName: admin.displayName
       },
       totals: {
         serviceCount: services.length,
@@ -183,9 +158,10 @@ export default async function handler(req: any, res: any) {
       },
       services
     });
-  } catch (error: any) {
+  } catch (error) {
+    console.error("[system-admin-overview]", error);
     res.status(500).json({
-      error: typeof error?.message === "string" ? error.message : "Yönetici paneli verileri alınamadı."
+      error: "Yönetici paneli verileri alınamadı."
     });
   }
 }

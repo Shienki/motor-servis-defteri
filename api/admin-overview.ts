@@ -1,6 +1,8 @@
+import { applyApiSecurityHeaders } from "./_security";
+
 export default async function handler(_req: any, res: any) {
-  res.status(200).json({
-    ok: true,
-    message: "admin-overview static test"
+  applyApiSecurityHeaders(res, { privateResponse: true });
+  res.status(410).json({
+    error: "Bu endpoint artık kullanılmıyor."
   });
 }

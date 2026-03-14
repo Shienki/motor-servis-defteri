@@ -274,6 +274,10 @@ function ensureSeedData() {
     return;
   }
 
+  if (!integrationStatus.localFallbackEnabled) {
+    throw new Error("Canlı ortamda yerel demo verisi kapalı.");
+  }
+
   const currentVersion = window.localStorage.getItem(STORAGE_KEYS.version);
   if (currentVersion !== SEED_VERSION) {
     if (!window.localStorage.getItem(STORAGE_KEYS.users)) {

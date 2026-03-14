@@ -1,3 +1,5 @@
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+
 const COOKIE_NAME = "msd_admin_session";
 
 function requireEnv(name: string) {
@@ -8,8 +10,12 @@ function requireEnv(name: string) {
   return value;
 }
 
-function getAdminSessionToken() {
-  return `admin:${requireEnv("ADMIN_SESSION_SECRET")}`;
+function getAdminSecret() {
+  return requireEnv("ADMIN_SESSION_SECRET");
+}
+
+function createSignature(payload: string) {
+  return createHmac("sha256", getAdminSecret()).update(payload).digest("hex");
 }
 
 export function getAdminCredentials() {
@@ -19,8 +25,13 @@ export function getAdminCredentials() {
   };
 }
 
-export function createAdminToken() {
-  return getAdminSessionToken();
+export function createAdminToken(rememberMe = true) {
+  const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
+  const expiresAt = Date.now() + maxAge * 1000;
+  const nonce = randomBytes(12).toString("hex");
+  const payload = `${getAdminCredentials().username}.${expiresAt}.${nonce}`;
+  const signature = createSignature(payload);
+  return `${payload}.${signature}`;
 }
 
 export function readAdminToken(req: any) {
@@ -41,25 +52,40 @@ export function readAdminToken(req: any) {
 }
 
 export function verifyAdminToken(token: string) {
-  if (!token || token !== getAdminSessionToken()) {
+  const parts = token.split(".");
+  if (parts.length !== 4) {
     return null;
   }
 
-  return {
-    username: getAdminCredentials().username
-  };
+  const [username, expiresAtRaw, nonce, signature] = parts;
+  const expectedUsername = getAdminCredentials().username;
+  const expiresAt = Number(expiresAtRaw);
+  if (username !== expectedUsername || !Number.isFinite(expiresAt) || expiresAt <= Date.now() || !nonce || !signature) {
+    return null;
+  }
+
+  const payload = `${username}.${expiresAtRaw}.${nonce}`;
+  const expectedSignature = createSignature(payload);
+  const providedBuffer = Buffer.from(signature, "hex");
+  const expectedBuffer = Buffer.from(expectedSignature, "hex");
+
+  if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+    return null;
+  }
+
+  return { username };
 }
 
 export function setAdminCookie(res: any, token: string, rememberMe = true) {
   const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
   res.setHeader(
     "Set-Cookie",
-    `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Secure`
+    `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}; Secure; Priority=High`
   );
 }
 
 export function clearAdminCookie(res: any) {
-  res.setHeader("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
+  res.setHeader("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Secure; Priority=High`);
 }
 
 export function requireAdmin(req: any) {

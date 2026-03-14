@@ -1,12 +1,5 @@
-const COOKIE_NAME = "msd_admin_session";
-
-function readEnv(name: string) {
-  const value = String(process.env[name] || "").trim();
-  if (!value) {
-    throw new Error(`${name} tanımlı değil.`);
-  }
-  return value;
-}
+import { clearAdminCookie, createAdminToken, getAdminCredentials, setAdminCookie } from "./_adminAuth";
+import { applyApiSecurityHeaders } from "./_security";
 
 function getClientIp(req: any) {
   const forwarded = String(req?.headers?.["x-forwarded-for"] || "")
@@ -52,26 +45,16 @@ function applyRateLimit(res: any, key: string, windowMs: number, max: number) {
   return true;
 }
 
-function setAdminCookie(res: any, token: string, rememberMe: boolean) {
-  const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
-  res.setHeader(
-    "Set-Cookie",
-    `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Secure`
-  );
-}
-
-function clearAdminCookie(res: any) {
-  res.setHeader("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
-}
-
 export default async function handler(req: any, res: any) {
+  applyApiSecurityHeaders(res, { privateResponse: true });
+
   if (req.method !== "POST") {
     res.status(405).json({ success: false, error: "Method not allowed" });
     return;
   }
 
   const ip = getClientIp(req);
-  if (!applyRateLimit(res, `admin-login:${ip}`, 10 * 60 * 1000, 10)) {
+  if (!applyRateLimit(res, `admin-login:${ip}`, 10 * 60 * 1000, 8)) {
     return;
   }
 
@@ -79,27 +62,25 @@ export default async function handler(req: any, res: any) {
     const username = String(req?.body?.username || "").trim().toLowerCase();
     const password = String(req?.body?.password || "").trim();
     const rememberMe = Boolean(req?.body?.rememberMe ?? true);
+    const adminCredentials = getAdminCredentials();
 
-    const adminUsername = readEnv("ADMIN_USERNAME").toLowerCase();
-    const adminPassword = readEnv("ADMIN_PASSWORD");
-    const sessionSecret = readEnv("ADMIN_SESSION_SECRET");
-
-    if (username !== adminUsername || password !== adminPassword) {
+    if (username !== adminCredentials.username || password !== adminCredentials.password) {
       clearAdminCookie(res);
       res.status(401).json({ success: false, error: "Yönetici kullanıcı adı veya şifre hatalı." });
       return;
     }
 
-    setAdminCookie(res, `admin:${sessionSecret}`, rememberMe);
+    setAdminCookie(res, createAdminToken(rememberMe), rememberMe);
     res.status(200).json({
       success: true,
       admin: {
-        username: adminUsername,
-        displayName: adminUsername
+        username: adminCredentials.username,
+        displayName: adminCredentials.username
       }
     });
-  } catch (error: any) {
+  } catch (error) {
+    console.error("[admin-login]", error);
     clearAdminCookie(res);
-    res.status(500).json({ success: false, error: error?.message ?? "Yönetici girişi kurulamadı." });
+    res.status(500).json({ success: false, error: "Yönetici girişi şu an kullanılamıyor." });
   }
 }

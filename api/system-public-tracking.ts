@@ -13,6 +13,17 @@ type WorkOrderRow = {
   customer_visible_note: string | null;
 };
 
+function applyPublicHeaders(res: any) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+}
+
 function requireEnv(name: string) {
   const value = String(process.env[name] || "").trim();
   if (!value) {
@@ -167,9 +178,7 @@ async function findMotorcycleByTokenOrPlateOrQr(token: string, plate: string, qr
 }
 
 export default async function handler(req: any, res: any) {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
+  applyPublicHeaders(res);
 
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
@@ -251,8 +260,9 @@ export default async function handler(req: any, res: any) {
       unpaidTotal: normalizedRepairs.reduce((sum: number, item: any) => sum + item.remaining, 0)
     });
   } catch (error: any) {
+    console.error("[system-public-tracking]", error);
     res.status(503).json({
-      error: typeof error?.message === "string" ? error.message : "Takip servisi hazır değil."
+      error: "Takip servisi şu an kullanılamıyor."
     });
   }
 }
