@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthShell } from "../components/AuthShell";
 import { Button, Input, Label } from "../components/Ui";
-import { signInUser } from "../lib/mockApi";
 import { formatPlateDisplay } from "../lib/format";
+import { signInUser } from "../lib/mockApi";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -37,7 +37,6 @@ export function LoginPage() {
 
   async function installOnAndroid() {
     if (!deferredPrompt) return;
-
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     if (choice.outcome === "accepted") {
@@ -47,7 +46,7 @@ export function LoginPage() {
 
   return (
     <div className="relative">
-      <AuthShell title="Giriş Yap" subtitle="Servis kayıtlarına ulaşmak için hesabına giriş yap.">
+      <AuthShell title="Giriş Yap" subtitle="Servis kayıtlarına ulaşmak için hesabınıza giriş yapın.">
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate/10 bg-white/80 p-4">
             <div className="space-y-1">
@@ -139,9 +138,9 @@ export function LoginPage() {
             </Button>
 
             <p className="text-center text-sm text-steel">
-              Hesabın yok mu?{" "}
+              Servisiniz için yeni hesap mı açacaksınız?{" "}
               <Link className="font-semibold text-warning" to="/kayit">
-                Kayıt Ol
+                İşletme hesabı oluştur
               </Link>
             </p>
 
