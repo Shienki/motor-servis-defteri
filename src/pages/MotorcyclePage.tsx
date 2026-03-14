@@ -382,7 +382,7 @@ export function MotorcyclePage() {
                 <Camera size={18} />
                 {trackingCard?.officialQrBound ? "Resmi QR'ı yenile" : "Resmi QR bağla"}
               </Button>
-              <Link to={trackingCard?.publicTrackingPath ?? `/takip/moto:${motorcycle.id}`}>
+              <Link to={trackingCard?.publicTrackingPath ?? `/takip/plaka:${encodeURIComponent(motorcycle.licensePlate)}`}>
                 <Button className="w-full" variant="ghost">
                   Müşteri Ekranını Aç
                 </Button>

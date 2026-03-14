@@ -908,7 +908,7 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
       history,
       workOrder,
       officialQrBound: Boolean(workOrders.find((item) => item.motorcycleId === motorcycleId && item.qrValue)),
-      publicTrackingPath: `/takip/moto:${motorcycle.id}`
+      publicTrackingPath: `/takip/plaka:${encodeURIComponent(formatPlateDisplay(motorcycle.licensePlate))}`
     };
   }
 
@@ -931,7 +931,7 @@ export async function fetchMotorcycleTrackingCard(motorcycleId: string) {
     motorcycle,
     workOrder,
     officialQrBound: Boolean(workOrders.find((item) => item.motorcycleId === motorcycleId && item.qrValue)),
-    publicTrackingPath: `/takip/moto:${motorcycle.id}`
+    publicTrackingPath: `/takip/plaka:${encodeURIComponent(formatPlateDisplay(motorcycle.licensePlate))}`
   };
 }
 
