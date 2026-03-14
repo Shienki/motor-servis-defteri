@@ -1,5 +1,14 @@
-import { requireAdmin } from "./_adminAuth";
-import { applyApiSecurityHeaders } from "./_security";
+function applyPrivateHeaders(res: any) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+}
 
 function requireEnv(name: string) {
   const value = String(process.env[name] || "").trim();
@@ -7,6 +16,59 @@ function requireEnv(name: string) {
     throw new Error(`${name} tanımlı değil.`);
   }
   return value;
+}
+
+function signValue(value: string, secret: string) {
+  let hash = 2166136261;
+  const input = `${value}|${secret}`;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function readAdminToken(req: any) {
+  const cookieHeader = String(req?.headers?.cookie || "");
+  const cookies = cookieHeader
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  for (const cookie of cookies) {
+    const [name, ...rest] = cookie.split("=");
+    if (name === "msd_admin_session") {
+      return decodeURIComponent(rest.join("="));
+    }
+  }
+
+  return "";
+}
+
+function verifyAdmin(req: any) {
+  const token = readAdminToken(req);
+  const parts = token.split(".");
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const [username, expiresAtRaw, nonce, signature] = parts;
+  const expiresAt = Number(expiresAtRaw);
+  const expectedUsername = requireEnv("ADMIN_USERNAME").toLowerCase();
+  if (username !== expectedUsername || !Number.isFinite(expiresAt) || expiresAt <= Date.now() || !nonce || !signature) {
+    return null;
+  }
+
+  const payload = `${username}.${expiresAtRaw}.${nonce}`;
+  const expectedSignature = signValue(payload, requireEnv("ADMIN_SESSION_SECRET"));
+  if (signature !== expectedSignature) {
+    return null;
+  }
+
+  return {
+    username,
+    displayName: username
+  };
 }
 
 async function requestJson(path: string) {
@@ -35,7 +97,7 @@ function getLatestIso(values: Array<string | null | undefined>) {
 }
 
 export default async function handler(req: any, res: any) {
-  applyApiSecurityHeaders(res, { privateResponse: true });
+  applyPrivateHeaders(res);
 
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
@@ -43,7 +105,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const admin = await requireAdmin(req);
+    const admin = verifyAdmin(req);
     if (!admin) {
       res.status(401).json({ error: "Yönetici oturumu bulunamadı." });
       return;
@@ -160,8 +222,6 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error) {
     console.error("[system-admin-overview]", error);
-    res.status(500).json({
-      error: "Yönetici paneli verileri alınamadı."
-    });
+    res.status(500).json({ error: "Yönetici paneli verileri alınamadı." });
   }
 }
