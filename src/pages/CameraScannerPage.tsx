@@ -167,9 +167,14 @@ export function CameraScannerPage() {
         return;
       }
 
-      if (mode === "new-record-bind" || mode === "service-search") {
+      if (mode === "service-search") {
         setShowUnregisteredQrFallback(true);
         setStatus("QR kayıtlı değil. Lütfen QR ile yeni kayıt oluşturun veya plakayı elle girin.");
+        return;
+      }
+
+      if (mode === "new-record-bind") {
+        navigate(`/motosiklet-yeni?resmiQr=${encodeURIComponent(pendingQr)}&yontem=qr`, { replace: true });
         return;
       }
 
