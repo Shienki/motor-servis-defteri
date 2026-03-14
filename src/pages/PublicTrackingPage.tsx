@@ -138,13 +138,7 @@ export function PublicTrackingPage() {
                 <Phone size={18} className="mt-0.5 text-warning" />
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-mist">Servis telefonu</p>
-                  {data.shopPhone ? (
-                    <a href={`tel:${data.shopPhone}`} className="mt-1 inline-block text-base font-semibold text-ink underline-offset-4 hover:underline">
-                      {data.shopPhone}
-                    </a>
-                  ) : (
-                    <p className="mt-1 text-base font-semibold text-ink">Telefon bilgisi paylaşılmadı</p>
-                  )}
+                  <p className="mt-1 text-base font-semibold text-ink">{data.shopPhone || "Telefon bilgisi paylaşılmadı"}</p>
                 </div>
               </div>
             </div>
