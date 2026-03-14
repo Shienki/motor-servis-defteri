@@ -41,13 +41,13 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const adminSession = requireAdmin(req);
-  if (!adminSession) {
-    res.status(401).json({ error: "Yönetici oturumu bulunamadı." });
-    return;
-  }
-
   try {
+    const adminSession = requireAdmin(req);
+    if (!adminSession) {
+      res.status(401).json({ error: "Yönetici oturumu bulunamadı." });
+      return;
+    }
+
     const [profileRows, motorcycleRows, repairRows, workOrderRows, paymentRows] = await Promise.all([
       fetchRest("profiles?select=*"),
       fetchRest("motorcycles?select=*"),
@@ -78,7 +78,9 @@ export default async function handler(req: any, res: any) {
       const qrBindings = userWorkOrders
         .filter((item: any) => item.qr_value)
         .map((item: any) => {
-          const motorcycle = (motorcycleRows ?? []).find((motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id);
+          const motorcycle = (motorcycleRows ?? []).find(
+            (motorcycleItem: any) => motorcycleItem.id === item.motorcycle_id
+          );
           return {
             workOrderId: item.id,
             motorcycleId: item.motorcycle_id,
