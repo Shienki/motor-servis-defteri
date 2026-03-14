@@ -87,6 +87,28 @@ export function CameraScannerPage() {
         if (!rawValue) return;
 
         solvedRef.current = true;
+
+        if (mode === "customer-track") {
+          setStatus("QR okundu. Kayıt kontrol ediliyor.");
+          setPendingQr(rawValue);
+          setBusy(true);
+          try {
+            const motorcycle = await findMotorcycleByOfficialQr(rawValue);
+            if (motorcycle) {
+              navigate(`/takip/moto:${motorcycle.id}`, { replace: true });
+              return;
+            }
+
+            setShowManualFallback(true);
+            setStatus("Kayıtlı QR bulunamadı. Lütfen plakanızı elle giriniz.");
+            setPendingQr("");
+            solvedRef.current = false;
+          } finally {
+            setBusy(false);
+          }
+          return;
+        }
+
         setPendingQr(rawValue);
         setStatus("QR okundu. Devam etmeden önce kontrol et.");
       } catch {
