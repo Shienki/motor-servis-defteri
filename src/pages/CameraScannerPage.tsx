@@ -27,12 +27,14 @@ export function CameraScannerPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const solvedRef = useRef(false);
+
   const [status, setStatus] = useState("Kamera açılıyor. Resmi plaka QR'ını kadraja getir.");
   const [supportNote, setSupportNote] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
   const [pendingQr, setPendingQr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
+  const [showUnregisteredQrFallback, setShowUnregisteredQrFallback] = useState(false);
   const [manualPlate, setManualPlate] = useState("");
   const [manualError, setManualError] = useState("");
   const [cameraSession, setCameraSession] = useState(0);
@@ -77,6 +79,7 @@ export function CameraScannerPage() {
             };
           });
         }
+
         setCameraReady(true);
         setStatus("Resmi plaka QR'ı bekleniyor.");
       } catch {
@@ -94,7 +97,7 @@ export function CameraScannerPage() {
   }, [cameraSession]);
 
   useEffect(() => {
-    if (!cameraReady || pendingQr || showManualFallback) {
+    if (!cameraReady || pendingQr || showManualFallback || showUnregisteredQrFallback) {
       return;
     }
 
@@ -143,7 +146,7 @@ export function CameraScannerPage() {
     }, 350);
 
     return () => window.clearInterval(interval);
-  }, [cameraReady, mode, navigate, pendingQr, showManualFallback]);
+  }, [cameraReady, mode, navigate, pendingQr, showManualFallback, showUnregisteredQrFallback]);
 
   async function continueWithQr() {
     if (!pendingQr || busy) return;
@@ -165,16 +168,12 @@ export function CameraScannerPage() {
       }
 
       if (mode === "new-record-bind" || mode === "service-search") {
-        navigate(`/motosiklet-yeni?resmiQr=${encodeURIComponent(pendingQr)}&yontem=qr`, { replace: true });
+        setShowUnregisteredQrFallback(true);
+        setStatus("QR kayıtlı değil. Lütfen QR ile yeni kayıt oluşturun veya plakayı elle girin.");
         return;
       }
 
-      if (mode === "customer-track") {
-        setShowManualFallback(true);
-        setStatus("Kayıtlı QR bulunamadı. Lütfen plakanızı elle giriniz.");
-      } else {
-        setStatus("Bu resmi plaka QR'ı için kayıt bulunamadı.");
-      }
+      setStatus("Bu resmi plaka QR'ı için kayıt bulunamadı.");
       solvedRef.current = false;
       setPendingQr("");
     } catch (error) {
@@ -192,8 +191,10 @@ export function CameraScannerPage() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+
     setPendingQr("");
     setShowManualFallback(false);
+    setShowUnregisteredQrFallback(false);
     setManualPlate("");
     setManualError("");
     setCameraReady(false);
@@ -206,6 +207,11 @@ export function CameraScannerPage() {
     const formattedPlate = formatPlateDisplay(manualPlate);
     if (!formattedPlate) {
       setManualError("Lütfen geçerli bir plaka giriniz.");
+      return;
+    }
+
+    if (mode !== "customer-track") {
+      navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(formattedPlate)}&yontem=manuel`, { replace: true });
       return;
     }
 
@@ -235,7 +241,7 @@ export function CameraScannerPage() {
       ? "Plaka üzerindeki resmi QR okutulunca müşteri takip ekranı açılır."
       : mode === "motorcycle-bind"
         ? "Bu motosiklete ait resmi plaka QR'ını bir kez okut, sonraki girişler hızlansın."
-        : "Usta tarafında plaka üstündeki resmi QR okutulur. Kayıtlıysa motor açılır, değilse yeni kayda bağlanır.";
+        : "Usta tarafında plaka üstündeki resmi QR okutulur. Kayıtlıysa motor açılır, değilse ne yapmak istediğin sorulur.";
 
   return (
     <div className="space-y-5 px-4 py-5">
@@ -247,11 +253,7 @@ export function CameraScannerPage() {
             <p className="mt-2 text-sm leading-6 text-steel">
               Resmi QR ilk kez bağlanacaksa burada kontrol et. Gerekirse tekrar tarayabilirsin.
             </p>
-            <Input
-              className="mt-4 font-medium text-ink"
-              value={pendingQr}
-              onChange={(event) => setPendingQr(event.target.value)}
-            />
+            <Input className="mt-4 font-medium text-ink" value={pendingQr} onChange={(event) => setPendingQr(event.target.value)} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Button type="button" variant="secondary" onClick={resetScan} disabled={busy}>
                 Tekrar tara
@@ -290,13 +292,54 @@ export function CameraScannerPage() {
         </div>
       ) : null}
 
+      {showUnregisteredQrFallback && mode !== "customer-track" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-warning">Resmi QR</p>
+            <h3 className="mt-2 text-2xl font-bold text-ink">QR kayıtlı değil</h3>
+            <p className="mt-2 text-sm leading-6 text-steel">
+              Lütfen QR ile yeni kayıt oluşturun veya plaka bilgisini elle girin.
+            </p>
+            <div className="mt-5 space-y-3">
+              <Input
+                placeholder="Örnek: 34 ABC 123"
+                value={manualPlate}
+                onChange={(event) => setManualPlate(formatPlateDisplay(event.target.value))}
+              />
+              {manualError ? <p className="text-sm text-danger">{manualError}</p> : null}
+            </div>
+            <div className="mt-5 grid gap-3">
+              <Button
+                type="button"
+                onClick={() => navigate(`/motosiklet-yeni?resmiQr=${encodeURIComponent(pendingQr)}&yontem=qr`, { replace: true })}
+              >
+                QR ile yeni kayıt oluştur
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()}>
+                Plakayı elle gir
+              </Button>
+              <Button type="button" variant="ghost" onClick={resetScan}>
+                QR'ı tekrar dene
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Panel className="bg-ink text-white">
         <SectionTitle eyebrow="Canlı kamera" title={title} description={description} />
-        {showManualFallback ? (
+
+        {showManualFallback || showUnregisteredQrFallback ? (
           <div className="mt-5 rounded-3xl border border-white/10 bg-white/10 p-5">
             <div className="space-y-1">
-              <p className="text-lg font-semibold text-white">Kayıtlı QR bulunamadı</p>
-              <p className="text-sm text-white/80">Lütfen plakanızı el ile giriniz.</p>
+              <p className="text-lg font-semibold text-white">
+                {showManualFallback ? "Kayıtlı QR bulunamadı" : "QR kayıtlı değil"}
+              </p>
+              <p className="text-sm text-white/80">
+                {showManualFallback
+                  ? "Lütfen plakanızı el ile giriniz."
+                  : "Lütfen QR ile yeni kayıt oluşturun veya plaka bilgisini elle girin."}
+              </p>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
               <Input
@@ -306,10 +349,19 @@ export function CameraScannerPage() {
                 onChange={(event) => setManualPlate(formatPlateDisplay(event.target.value))}
               />
               <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()} disabled={busy}>
-                {busy ? "Kontrol ediliyor..." : "Plaka ile devam et"}
+                {busy ? "Kontrol ediliyor..." : showManualFallback ? "Plaka ile devam et" : "Plakayı elle gir"}
               </Button>
             </div>
             {manualError ? <p className="mt-3 text-sm text-amber-200">{manualError}</p> : null}
+            {showUnregisteredQrFallback ? (
+              <Button
+                className="mt-4 w-full"
+                type="button"
+                onClick={() => navigate(`/motosiklet-yeni?resmiQr=${encodeURIComponent(pendingQr)}&yontem=qr`, { replace: true })}
+              >
+                QR ile yeni kayıt oluştur
+              </Button>
+            ) : null}
           </div>
         ) : (
           <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-black">
@@ -336,18 +388,24 @@ export function CameraScannerPage() {
 
         <p className="mt-4 text-sm text-white/85">{status}</p>
         {supportNote ? <p className="mt-2 text-sm text-white/70">{supportNote}</p> : null}
+
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Button
-            variant="secondary"
-            onClick={() => navigate(mode === "customer-track" ? "/giris" : "/panel")}
-          >
+          <Button variant="secondary" onClick={() => navigate(mode === "customer-track" ? "/giris" : "/panel")}>
             Geri dön
           </Button>
           <Button
             variant="ghost"
-            onClick={() => (showManualFallback ? resetScan() : navigate(mode === "customer-track" ? "/giris" : "/motosiklet-yeni?yontem=manuel"))}
+            onClick={() =>
+              showManualFallback || showUnregisteredQrFallback
+                ? resetScan()
+                : navigate(mode === "customer-track" ? "/giris" : "/motosiklet-yeni?yontem=manuel")
+            }
           >
-            {showManualFallback ? "QR'ı tekrar dene" : mode === "customer-track" ? "Plakayı elle gir" : "Elle plaka gir"}
+            {showManualFallback || showUnregisteredQrFallback
+              ? "QR'ı tekrar dene"
+              : mode === "customer-track"
+                ? "Plakayı elle gir"
+                : "Elle plaka gir"}
           </Button>
         </div>
       </Panel>
