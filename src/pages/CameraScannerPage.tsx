@@ -2,7 +2,8 @@ import { Camera, QrCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Input, Panel, SectionTitle } from "../components/Ui";
-import { bindOfficialQrToMotorcycle, findMotorcycleByOfficialQr } from "../lib/mockApi";
+import { bindOfficialQrToMotorcycle, fetchPublicTrackingByPlate, findMotorcycleByOfficialQr } from "../lib/mockApi";
+import { formatPlateDisplay } from "../lib/format";
 
 type ScannerMode = "service-search" | "new-record-bind" | "motorcycle-bind" | "customer-track";
 
@@ -27,6 +28,8 @@ export function CameraScannerPage() {
   const [pendingQr, setPendingQr] = useState("");
   const [busy, setBusy] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
+  const [manualPlate, setManualPlate] = useState("");
+  const [manualError, setManualError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -160,8 +163,31 @@ export function CameraScannerPage() {
   function resetScan() {
     setPendingQr("");
     setShowManualFallback(false);
+    setManualPlate("");
+    setManualError("");
     solvedRef.current = false;
     setStatus("Resmi plaka QR'ı bekleniyor.");
+  }
+
+  async function continueWithManualPlate() {
+    const formattedPlate = formatPlateDisplay(manualPlate);
+    if (!formattedPlate) {
+      setManualError("Lütfen geçerli bir plaka giriniz.");
+      return;
+    }
+
+    setBusy(true);
+    setManualError("");
+    try {
+      const result = await fetchPublicTrackingByPlate(formattedPlate);
+      if (!result) {
+        setManualError("Bu plakaya ait müşteri kaydı bulunamadı.");
+        return;
+      }
+      navigate(`/takip/plaka:${encodeURIComponent(formattedPlate)}`, { replace: true });
+    } finally {
+      setBusy(false);
+    }
   }
 
   const title =
@@ -207,9 +233,30 @@ export function CameraScannerPage() {
 
       <Panel className="bg-ink text-white">
         <SectionTitle eyebrow="Canlı kamera" title={title} description={description} />
-        <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-black">
-          <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted autoPlay />
-        </div>
+        {showManualFallback ? (
+          <div className="mt-5 rounded-3xl border border-white/10 bg-white/10 p-5">
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-white">Kayıtlı QR bulunamadı</p>
+              <p className="text-sm text-white/80">Lütfen plakanızı el ile giriniz.</p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <Input
+                className="border-white/10 bg-white/10 text-white placeholder:text-white/50"
+                placeholder="Örnek: 34 ABC 123"
+                value={manualPlate}
+                onChange={(event) => setManualPlate(formatPlateDisplay(event.target.value))}
+              />
+              <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()} disabled={busy}>
+                {busy ? "Kontrol ediliyor..." : "Plaka ile devam et"}
+              </Button>
+            </div>
+            {manualError ? <p className="mt-3 text-sm text-amber-200">{manualError}</p> : null}
+          </div>
+        ) : (
+          <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-black">
+            <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted autoPlay />
+          </div>
+        )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
@@ -230,13 +277,6 @@ export function CameraScannerPage() {
 
         <p className="mt-4 text-sm text-white/85">{status}</p>
         {supportNote ? <p className="mt-2 text-sm text-white/70">{supportNote}</p> : null}
-        {showManualFallback ? (
-          <div className="mt-4 rounded-2xl bg-white/10 px-4 py-4 text-sm text-white/85">
-            <p className="font-medium text-white">Kayıtlı QR bulunamadı.</p>
-            <p className="mt-1">Lütfen plakanızı elle girerek müşteri takip ekranına devam edin.</p>
-          </div>
-        ) : null}
-
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Button
             variant="secondary"
@@ -246,11 +286,9 @@ export function CameraScannerPage() {
           </Button>
           <Button
             variant="ghost"
-            onClick={() =>
-              navigate(mode === "customer-track" ? "/giris" : "/motosiklet-yeni?yontem=manuel")
-            }
+            onClick={() => (showManualFallback ? resetScan() : navigate(mode === "customer-track" ? "/giris" : "/motosiklet-yeni?yontem=manuel"))}
           >
-            {mode === "customer-track" ? "Plakayı elle gir" : "Elle plaka gir"}
+            {showManualFallback ? "QR'ı tekrar dene" : mode === "customer-track" ? "Plakayı elle gir" : "Elle plaka gir"}
           </Button>
         </div>
       </Panel>
