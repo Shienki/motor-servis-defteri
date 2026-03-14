@@ -11,7 +11,7 @@ export function NewMotorcyclePage() {
   const [searchParams] = useSearchParams();
   const autoScanStarted = useRef(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("Önce plakayı yazabilir veya kamerayla okutabilirsin.");
+  const [message, setMessage] = useState("Yeni kayıt için plakayı elle yaz veya resmi QR'ı bu kayda bağla.");
   const [duplicateMotorcycle, setDuplicateMotorcycle] = useState<Motorcycle | null>(null);
   const officialQr = searchParams.get("resmiQr")?.trim() ?? "";
   const [form, setForm] = useState({
@@ -120,7 +120,7 @@ export function NewMotorcyclePage() {
         <SectionTitle
           eyebrow="Yeni kayıt"
           title="Yeni motosiklet kaydı aç"
-          description="Plakayı elle yaz. İstersen resmi plaka QR'ını da bu kayda bağlayabilirsin."
+          description="Plakayı elle yaz. İstersen resmi plaka QR'ını doğrudan bu yeni kayda bağlayabilirsin."
         />
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
           <Input
@@ -136,7 +136,7 @@ export function NewMotorcyclePage() {
           />
           <Button className="gap-2" variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit-qr")}>
             <Camera size={18} />
-            Resmi QR Tara
+            Resmi QR ile Yeni Kayıt
           </Button>
         </div>
         {officialQr ? (

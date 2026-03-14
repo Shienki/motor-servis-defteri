@@ -6,7 +6,8 @@ import {
   bindOfficialQrToMotorcycle,
   fetchPublicTrackingByOfficialQr,
   fetchPublicTrackingByPlate,
-  findMotorcycleByOfficialQr
+  findMotorcycleByOfficialQr,
+  findMotorcycleByPlate
 } from "../lib/mockApi";
 import { formatPlateDisplay } from "../lib/format";
 
@@ -28,7 +29,7 @@ export function CameraScannerPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const solvedRef = useRef(false);
 
-  const [status, setStatus] = useState("Kamera açılıyor. Resmi plaka QR'ını kadraja getir.");
+  const [status, setStatus] = useState("");
   const [supportNote, setSupportNote] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
   const [pendingQr, setPendingQr] = useState("");
@@ -38,6 +39,17 @@ export function CameraScannerPage() {
   const [manualPlate, setManualPlate] = useState("");
   const [manualError, setManualError] = useState("");
   const [cameraSession, setCameraSession] = useState(0);
+
+  function getWaitingStatus() {
+    if (mode === "customer-track") return "Müşteri takibi için resmi QR bekleniyor.";
+    if (mode === "motorcycle-bind") return "Bu motosiklete bağlanacak resmi QR bekleniyor.";
+    if (mode === "new-record-bind") return "Yeni kayda bağlanacak resmi QR bekleniyor.";
+    return "Kayıtlı motosikleti bulmak için resmi QR bekleniyor.";
+  }
+
+  useEffect(() => {
+    setStatus(`Kamera açılıyor. ${getWaitingStatus()}`);
+  }, [mode]);
 
   useEffect(() => {
     let mounted = true;
@@ -81,7 +93,7 @@ export function CameraScannerPage() {
         }
 
         setCameraReady(true);
-        setStatus("Resmi plaka QR'ı bekleniyor.");
+        setStatus(getWaitingStatus());
       } catch {
         setStatus("Kamera açılamadı. Tarayıcı iznini kontrol et.");
       }
@@ -94,7 +106,7 @@ export function CameraScannerPage() {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [cameraSession]);
+  }, [cameraSession, mode]);
 
   useEffect(() => {
     if (!cameraReady || pendingQr || showManualFallback || showUnregisteredQrFallback) {
@@ -139,7 +151,7 @@ export function CameraScannerPage() {
         }
 
         setPendingQr(rawValue);
-        setStatus("QR okundu. Devam etmeden önce kontrol et.");
+        setStatus(mode === "new-record-bind" ? "QR okundu. Yeni kayda bağlamadan önce kontrol et." : "QR okundu. Devam etmeden önce kontrol et.");
       } catch {
         setSupportNote("QR algılama bu tarayıcıda sınırlı olabilir.");
       }
@@ -169,7 +181,7 @@ export function CameraScannerPage() {
 
       if (mode === "service-search") {
         setShowUnregisteredQrFallback(true);
-        setStatus("QR kayıtlı değil. Lütfen QR ile yeni kayıt oluşturun veya plakayı elle girin.");
+        setStatus("QR kayıtlı değil. Lütfen QR ile yeni kayıt oluşturun veya plakayı elle arayın.");
         return;
       }
 
@@ -204,7 +216,7 @@ export function CameraScannerPage() {
     setManualError("");
     setCameraReady(false);
     solvedRef.current = false;
-    setStatus("Kamera yeniden açılıyor. Resmi plaka QR'ını kadraja getir.");
+    setStatus(`Kamera yeniden açılıyor. ${getWaitingStatus()}`);
     setCameraSession((current) => current + 1);
   }
 
@@ -215,7 +227,23 @@ export function CameraScannerPage() {
       return;
     }
 
-    if (mode !== "customer-track") {
+    if (mode === "service-search") {
+      setBusy(true);
+      setManualError("");
+      try {
+        const motorcycle = await findMotorcycleByPlate(formattedPlate);
+        if (!motorcycle) {
+          setManualError("Bu plakaya ait kayıt bulunamadı. İstersen yeni kayıt oluşturabilirsin.");
+          return;
+        }
+        navigate(`/motosiklet/${motorcycle.id}`, { replace: true });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (mode === "new-record-bind" || mode === "motorcycle-bind") {
       navigate(`/motosiklet-yeni?plaka=${encodeURIComponent(formattedPlate)}&yontem=manuel`, { replace: true });
       return;
     }
@@ -239,14 +267,18 @@ export function CameraScannerPage() {
       ? "Müşteri QR takibi"
       : mode === "motorcycle-bind"
         ? "Resmi QR bağla"
-        : "Resmi plaka QR tara";
+        : mode === "new-record-bind"
+          ? "Resmi QR ile yeni kayıt"
+          : "Resmi QR tara";
 
   const description =
     mode === "customer-track"
       ? "Plaka üzerindeki resmi QR okutulunca müşteri takip ekranı açılır."
       : mode === "motorcycle-bind"
         ? "Bu motosiklete ait resmi plaka QR'ını bir kez okut, sonraki girişler hızlansın."
-        : "Usta tarafında plaka üstündeki resmi QR okutulur. Kayıtlıysa motor açılır, değilse ne yapmak istediğin sorulur.";
+        : mode === "new-record-bind"
+          ? "Kayıtlı olmayan resmi QR'ı yeni motosiklet kaydına bağlamak için kullan."
+          : "Kayıtlı resmi QR okutulur. Eşleşirse mevcut motosiklet kaydı açılır.";
 
   return (
     <div className="space-y-5 px-4 py-5">
@@ -254,9 +286,13 @@ export function CameraScannerPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
             <p className="text-xs uppercase tracking-[0.24em] text-warning">Resmi plaka QR</p>
-            <h3 className="mt-2 text-2xl font-bold text-ink">Okunan QR doğru mu?</h3>
+            <h3 className="mt-2 text-2xl font-bold text-ink">
+              {mode === "new-record-bind" ? "Bu QR yeni kayda bağlansın mı?" : "Okunan QR doğru mu?"}
+            </h3>
             <p className="mt-2 text-sm leading-6 text-steel">
-              Resmi QR ilk kez bağlanacaksa burada kontrol et. Gerekirse tekrar tarayabilirsin.
+              {mode === "new-record-bind"
+                ? "Bu QR henüz kayıtlı değilse onaydan sonra yeni motosiklet kaydına bağlanır."
+                : "Kayıtlı bir QR ise ilgili motosiklet kaydı açılır. Gerekirse tekrar tarayabilirsin."}
             </p>
             <Input className="mt-4 font-medium text-ink" value={pendingQr} onChange={(event) => setPendingQr(event.target.value)} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -264,7 +300,7 @@ export function CameraScannerPage() {
                 Tekrar tara
               </Button>
               <Button type="button" onClick={() => void continueWithQr()} disabled={busy}>
-                {busy ? "İşleniyor..." : "Onayla ve devam et"}
+                {busy ? "İşleniyor..." : mode === "new-record-bind" ? "Yeni kayda bağla" : "Onayla ve devam et"}
               </Button>
             </div>
           </div>
@@ -297,13 +333,13 @@ export function CameraScannerPage() {
         </div>
       ) : null}
 
-      {showUnregisteredQrFallback && mode !== "customer-track" ? (
+      {showUnregisteredQrFallback && mode === "service-search" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-            <p className="text-xs uppercase tracking-[0.24em] text-warning">Resmi QR</p>
-            <h3 className="mt-2 text-2xl font-bold text-ink">QR kayıtlı değil</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-warning">Resmi QR tara</p>
+            <h3 className="mt-2 text-2xl font-bold text-ink">Bu QR henüz kayıtlı değil</h3>
             <p className="mt-2 text-sm leading-6 text-steel">
-              Lütfen QR ile yeni kayıt oluşturun veya plaka bilgisini elle girin.
+              Bu ekran mevcut kaydı bulmak için kullanılır. İstersen QR ile yeni kayıt oluşturabilir veya plakayı elle arayabilirsin.
             </p>
             <div className="mt-5 space-y-3">
               <Input
@@ -320,8 +356,8 @@ export function CameraScannerPage() {
               >
                 QR ile yeni kayıt oluştur
               </Button>
-              <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()}>
-                Plakayı elle gir
+              <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()} disabled={busy}>
+                {busy ? "Kontrol ediliyor..." : "Plakayı elle ara"}
               </Button>
               <Button type="button" variant="ghost" onClick={resetScan}>
                 QR'ı tekrar dene
@@ -338,12 +374,12 @@ export function CameraScannerPage() {
           <div className="mt-5 rounded-3xl border border-white/10 bg-white/10 p-5">
             <div className="space-y-1">
               <p className="text-lg font-semibold text-white">
-                {showManualFallback ? "Kayıtlı QR bulunamadı" : "QR kayıtlı değil"}
+                {showManualFallback ? "Kayıtlı QR bulunamadı" : "Bu QR henüz kayıtlı değil"}
               </p>
               <p className="text-sm text-white/80">
                 {showManualFallback
                   ? "Lütfen plakanızı el ile giriniz."
-                  : "Lütfen QR ile yeni kayıt oluşturun veya plaka bilgisini elle girin."}
+                  : "Bu ekran mevcut kaydı bulmak içindir. İstersen yeni kayıt başlatabilir veya plakayı elle arayabilirsin."}
               </p>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -354,7 +390,7 @@ export function CameraScannerPage() {
                 onChange={(event) => setManualPlate(formatPlateDisplay(event.target.value))}
               />
               <Button type="button" variant="secondary" onClick={() => void continueWithManualPlate()} disabled={busy}>
-                {busy ? "Kontrol ediliyor..." : showManualFallback ? "Plaka ile devam et" : "Plakayı elle gir"}
+                {busy ? "Kontrol ediliyor..." : showManualFallback ? "Plaka ile devam et" : "Plakayı elle ara"}
               </Button>
             </div>
             {manualError ? <p className="mt-3 text-sm text-amber-200">{manualError}</p> : null}
@@ -378,9 +414,15 @@ export function CameraScannerPage() {
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
               <QrCode size={16} />
-              <span className="font-medium">Sadece resmi QR</span>
+              <span className="font-medium">{mode === "new-record-bind" ? "Yeni kayıt akışı" : "Kayıt bulma akışı"}</span>
             </div>
-            <p className="mt-2 text-white/75">Bu akışta plaka OCR yok. Sadece plaka üstündeki QR okutulur.</p>
+            <p className="mt-2 text-white/75">
+              {mode === "new-record-bind"
+                ? "Bu akış yeni motosiklet kaydı açmak için resmi QR'ı yeni kayda bağlar."
+                : mode === "service-search"
+                  ? "Bu akış mevcut motosiklet kaydını hızlıca açmak için kullanılır."
+                  : "Bu akışta plaka OCR yok. Sadece plaka üstündeki QR okutulur."}
+            </p>
           </div>
           <div className="rounded-2xl bg-white/10 px-4 py-4 text-sm">
             <div className="flex items-center gap-2 text-white">
@@ -403,14 +445,16 @@ export function CameraScannerPage() {
             onClick={() =>
               showManualFallback || showUnregisteredQrFallback
                 ? resetScan()
-                : navigate(mode === "customer-track" ? "/giris" : "/motosiklet-yeni?yontem=manuel")
+                : navigate(mode === "customer-track" ? "/giris" : mode === "service-search" ? "/panel" : "/motosiklet-yeni?yontem=manuel")
             }
           >
             {showManualFallback || showUnregisteredQrFallback
               ? "QR'ı tekrar dene"
               : mode === "customer-track"
                 ? "Plakayı elle gir"
-                : "Elle plaka gir"}
+                : mode === "service-search"
+                  ? "Panele dön"
+                  : "Elle plaka gir"}
           </Button>
         </div>
       </Panel>

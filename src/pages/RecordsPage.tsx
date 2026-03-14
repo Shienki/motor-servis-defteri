@@ -30,7 +30,7 @@ export function RecordsPage() {
         <SectionTitle
           eyebrow="Kayıt menüsü"
           title="Tüm motosiklet kayıtları"
-          description="Buradan kayıtları açabilir veya yeni kayıt başlatabilirsin."
+          description="Buradan mevcut kayıtları açabilir veya yeni kayıt başlatabilirsin."
         />
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <div className="relative">
@@ -45,8 +45,8 @@ export function RecordsPage() {
           <Button variant="secondary" onClick={() => navigate("/motosiklet-yeni?yontem=manuel")}>
             Elle Yeni Kayıt
           </Button>
-          <Button variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit")}>
-            Kamerayla Kayıt
+          <Button variant="ghost" onClick={() => navigate("/kamera?hedef=yeni-kayit-qr")}>
+            Resmi QR ile Yeni Kayıt
           </Button>
         </div>
       </Panel>
