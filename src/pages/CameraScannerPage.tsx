@@ -35,6 +35,7 @@ export function CameraScannerPage() {
   const [showManualFallback, setShowManualFallback] = useState(false);
   const [manualPlate, setManualPlate] = useState("");
   const [manualError, setManualError] = useState("");
+  const [cameraSession, setCameraSession] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -70,7 +71,7 @@ export function CameraScannerPage() {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [cameraSession]);
 
   useEffect(() => {
     if (!cameraReady || pendingQr || showManualFallback) {
@@ -166,12 +167,19 @@ export function CameraScannerPage() {
   }
 
   function resetScan() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setPendingQr("");
     setShowManualFallback(false);
     setManualPlate("");
     setManualError("");
+    setCameraReady(false);
     solvedRef.current = false;
-    setStatus("Resmi plaka QR'ı bekleniyor.");
+    setStatus("Kamera yeniden açılıyor. Resmi plaka QR'ını kadraja getir.");
+    setCameraSession((current) => current + 1);
   }
 
   async function continueWithManualPlate() {
