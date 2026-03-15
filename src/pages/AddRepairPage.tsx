@@ -9,107 +9,107 @@ import type { AiRepairDraft, Motorcycle, PaymentStatus } from "../types";
 const repairTemplates = {
   scooter: {
     label: "Scooter",
-    hint: "Varyator, kayis ve gunluk servis isleri",
+    hint: "Varyatör, kayış ve günlük servis işleri",
     presets: [
       {
-        label: "Bakim paketi",
-        description: "Yag, filtre ve buji bakimi",
-        items: ["Motor yagi degisti", "Yag filtresi degisti", "Hava filtresi degisti", "Buji degisti"]
+        label: "Bakım paketi",
+        description: "Yağ, filtre ve buji bakımı",
+        items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti"]
       },
       {
-        label: "Varyator bakimi",
-        description: "Kayis ve debriyaj tarafi",
-        items: ["Kayis degisti", "Varyator seti degisti", "Debriyaj balatasi degisti"]
+        label: "Varyatör bakımı",
+        description: "Kayış ve debriyaj tarafı",
+        items: ["Kayış değişti", "Varyatör seti değişti", "Debriyaj balatası değişti"]
       },
       {
-        label: "On fren isi",
-        description: "On fren ve hidrolik tarafi",
-        items: ["On fren balatasi degisti", "Fren hidroligi degisti"]
+        label: "Ön fren işi",
+        description: "Ön fren ve hidrolik tarafı",
+        items: ["Ön fren balatası değişti", "Fren hidroliği değişti"]
       }
     ],
     quickPicks: [
-      "Motor yagi degisti",
-      "Kayis degisti",
-      "Varyator seti degisti",
-      "Debriyaj balatasi degisti",
-      "On fren balatasi degisti",
-      "Aku degisti"
+      "Motor yağı değişti",
+      "Kayış değişti",
+      "Varyatör seti değişti",
+      "Debriyaj balatası değişti",
+      "Ön fren balatası değişti",
+      "Akü değişti"
     ],
     sections: [
       {
-        title: "Bakim",
-        items: ["Motor yagi degisti", "Yag filtresi degisti", "Hava filtresi degisti", "Buji degisti", "Subap ayari yapildi"]
+        title: "Bakım",
+        items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Subap ayarı yapıldı"]
       },
       {
-        title: "Varyator ve Debriyaj",
-        items: ["Kayis degisti", "Varyator seti degisti", "Debriyaj balatasi degisti", "Debriyaj seti degisti", "Rulman degisti"]
+        title: "Varyatör ve Debriyaj",
+        items: ["Kayış değişti", "Varyatör seti değişti", "Debriyaj balatası değişti", "Debriyaj seti değişti", "Rulman değişti"]
       },
       {
         title: "Fren",
-        items: ["On fren balatasi degisti", "Arka fren balatasi degisti", "Fren merkezi degisti", "Fren hidroligi degisti"]
+        items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Fren merkezi değişti", "Fren hidroliği değişti"]
       },
       {
         title: "Elektrik",
-        items: ["Aku degisti", "Konjektor degisti", "Mars komuru degisti", "Far ampulu degisti", "Sigorta degisti"]
+        items: ["Akü değişti", "Konjektör değişti", "Marş kömürü değişti", "Far ampulü değişti", "Sigorta değişti"]
       },
       {
         title: "Lastik",
-        items: ["On lastik degisti", "Arka lastik degisti", "Lastik tamiri yapildi", "Sibop degisti"]
+        items: ["Ön lastik değişti", "Arka lastik değişti", "Lastik tamiri yapıldı", "Sibop değişti"]
       }
     ]
   },
   motorcycle: {
     label: "Motosiklet",
-    hint: "Zincir, disli, on takim ve motor isleri",
+    hint: "Zincir, dişli, ön takım ve motor işleri",
     presets: [
       {
-        label: "Bakim paketi",
-        description: "Yag, filtre ve buji bakimi",
-        items: ["Motor yagi degisti", "Yag filtresi degisti", "Hava filtresi degisti", "Buji degisti"]
+        label: "Bakım paketi",
+        description: "Yağ, filtre ve buji bakımı",
+        items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti"]
       },
       {
-        label: "Alt takim",
-        description: "Kece, burc ve rulman tarafi",
-        items: ["Kece degisti", "Burc degisti", "Rulman degisti"]
+        label: "Alt takım",
+        description: "Keçe, burç ve rulman tarafı",
+        items: ["Keçe değişti", "Burç değişti", "Rulman değişti"]
       },
       {
-        label: "Zincir disli",
-        description: "Aktarma grubu toplu secim",
-        items: ["Zincir ayari yapildi", "Zincir degisti", "Disli seti degisti"]
+        label: "Zincir dişli",
+        description: "Aktarma grubu toplu seçim",
+        items: ["Zincir ayarı yapıldı", "Zincir değişti", "Dişli seti değişti"]
       }
     ],
     quickPicks: [
-      "Motor yagi degisti",
-      "Zincir ayari yapildi",
-      "Zincir degisti",
-      "Disli seti degisti",
-      "Kece degisti",
-      "On fren balatasi degisti"
+      "Motor yağı değişti",
+      "Zincir ayarı yapıldı",
+      "Zincir değişti",
+      "Dişli seti değişti",
+      "Keçe değişti",
+      "Ön fren balatası değişti"
     ],
     sections: [
       {
-        title: "Bakim",
-        items: ["Motor yagi degisti", "Yag filtresi degisti", "Hava filtresi degisti", "Buji degisti", "Subap ayari yapildi"]
+        title: "Bakım",
+        items: ["Motor yağı değişti", "Yağ filtresi değişti", "Hava filtresi değişti", "Buji değişti", "Subap ayarı yapıldı"]
       },
       {
         title: "Aktarma",
-        items: ["Zincir ayari yapildi", "Zincir degisti", "Disli seti degisti", "Debriyaj seti degisti", "Debriyaj balatasi degisti"]
+        items: ["Zincir ayarı yapıldı", "Zincir değişti", "Dişli seti değişti", "Debriyaj seti değişti", "Debriyaj balatası değişti"]
       },
       {
-        title: "On takim ve Suspansiyon",
-        items: ["Kece degisti", "Burc degisti", "Rulman degisti", "Amortisor degisti", "Gidon bilyasi degisti"]
+        title: "Ön takım ve Süspansiyon",
+        items: ["Keçe değişti", "Burç değişti", "Rulman değişti", "Amortisör değişti", "Gidon bilyası değişti"]
       },
       {
         title: "Fren",
-        items: ["On fren balatasi degisti", "Arka fren balatasi degisti", "Disk degisti", "Fren merkezi degisti"]
+        items: ["Ön fren balatası değişti", "Arka fren balatası değişti", "Disk değişti", "Fren merkezi değişti"]
       },
       {
         title: "Motor",
-        items: ["Subap ayari yapildi", "Enjektor temizlendi", "Karburator temizlendi", "Conta degisti", "Segman degisti"]
+        items: ["Subap ayarı yapıldı", "Enjektör temizlendi", "Karbüratör temizlendi", "Conta değişti", "Segman değişti"]
       },
       {
         title: "Lastik",
-        items: ["On lastik degisti", "Arka lastik degisti", "Lastik tamiri yapildi", "Sibop degisti"]
+        items: ["Ön lastik değişti", "Arka lastik değişti", "Lastik tamiri yapıldı", "Sibop değişti"]
       }
     ]
   }
@@ -183,7 +183,7 @@ export function AddRepairPage() {
     return (
       <div className="px-4 py-5">
         <Panel>
-          <SectionTitle title="Motosiklet bulunamadi" description="Yeni islem acmak icin once kayitli bir motosiklet sec." />
+          <SectionTitle title="Motosiklet bulunamadı" description="Yeni işlem açmak için önce kayıtlı bir motosiklet seç." />
         </Panel>
       </div>
     );
@@ -193,22 +193,22 @@ export function AddRepairPage() {
     <div className="space-y-5 px-4 py-5">
       <Panel className="bg-gradient-to-br from-ink via-slate to-steel text-white">
         <SectionTitle
-          eyebrow="Yeni is emri"
-          title={`${motorcycle.licensePlate} icin yeni islem`}
+          eyebrow="Yeni iş emri"
+          title={`${motorcycle.licensePlate} için yeni işlem`}
           titleClassName="text-white"
           eyebrowClassName="text-amber-200"
-          description="Ses kaydi ve AI analizi bu ekranda gizlendi. Burada usta gibi hizli sec, ek notu yaz, tutari gir ve kaydet."
+          description="Ses kaydı ve AI analizi bu ekranda gizlendi. Burada usta gibi hızlı seç, ek notu yaz, tutarı gir ve kaydet."
         />
         <div className="mt-5 grid gap-3 lg:grid-cols-[auto_1fr]">
           <div className="rounded-2xl bg-white/10 px-4 py-4">
             <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Motor</p>
             <p className="mt-2 text-lg font-semibold text-white">{motorcycle.model}</p>
-            <p className="mt-1 text-sm text-white/75">{motorcycle.customerName || "Musteri adi girilmedi"}</p>
+            <p className="mt-1 text-sm text-white/75">{motorcycle.customerName || "Müşteri adı girilmedi"}</p>
           </div>
           <div className="rounded-2xl bg-white/10 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Calisma sekli</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Çalışma şekli</p>
             <p className="mt-2 text-sm leading-6 text-white/85">
-              Once arac tipini sec. Sonra yapilan isleri tikla. En alta sadece eksik kalan aciklamayi ve ucreti yaz.
+              Önce araç tipini seç. Sonra yapılan işleri tıkla. En alta sadece eksik kalan açıklamayı ve ücreti yaz.
             </p>
           </div>
         </div>
@@ -216,16 +216,16 @@ export function AddRepairPage() {
 
       <Panel>
         <SectionTitle
-          eyebrow="Hazir secim"
-          title="Usta gibi hizli isaretle"
-          description="Gereksiz genel secenekler yok. Tiklananlar dogrudan islem aciklamasina eklenir."
+          eyebrow="Hazır seçim"
+          title="Usta gibi hızlı işaretle"
+          description="Gereksiz genel seçenekler yok. Tıklananlar doğrudan işlem açıklamasına eklenir."
         />
 
         <form className="mt-5 grid gap-5" onSubmit={handleSubmit}>
           <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
             <div className="space-y-4">
               <div>
-                <Label>Arac tipi</Label>
+                <Label>Araç tipi</Label>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                   {Object.entries(repairTemplates).map(([value, template]) => {
                     const active = repairTemplate === value;
@@ -255,7 +255,7 @@ export function AddRepairPage() {
               </div>
 
               <div className="rounded-[24px] border border-slate/10 bg-sand p-4">
-                <p className="text-sm font-semibold text-ink">Hazir paketler</p>
+                <p className="text-sm font-semibold text-ink">Hazır paketler</p>
                 <div className="mt-3 space-y-3">
                   {activeTemplate.presets.map((preset) => (
                     <button
@@ -269,7 +269,7 @@ export function AddRepairPage() {
                           <p className="font-semibold text-ink">{preset.label}</p>
                           <p className="mt-1 text-sm leading-6 text-steel">{preset.description}</p>
                         </div>
-                        <span className="rounded-full bg-sand px-3 py-1 text-xs font-medium text-steel">{preset.items.length} is</span>
+                        <span className="rounded-full bg-sand px-3 py-1 text-xs font-medium text-steel">{preset.items.length} iş</span>
                       </div>
                     </button>
                   ))}
@@ -277,7 +277,7 @@ export function AddRepairPage() {
               </div>
 
               <div className="rounded-[24px] border border-slate/10 bg-sand p-4">
-                <p className="text-sm font-semibold text-ink">Sik kullanilanlar</p>
+                <p className="text-sm font-semibold text-ink">Sık kullanılanlar</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {activeTemplate.quickPicks.map((item) => {
                     const selected = selectedChecklistItems.includes(item);
@@ -292,7 +292,7 @@ export function AddRepairPage() {
                             : "border-slate/10 bg-white text-steel hover:border-amber/50 hover:text-ink"
                         }`}
                       >
-                        {selected ? "Secildi: " : ""}
+                        {selected ? "Seçildi: " : ""}
                         {item}
                       </button>
                     );
@@ -331,10 +331,10 @@ export function AddRepairPage() {
           </div>
 
           <div>
-            <Label>Islem aciklamasi</Label>
+            <Label>İşlem açıklaması</Label>
             {selectedChecklistItems.length ? (
               <div className="mb-3 rounded-2xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-ink">
-                <p className="font-medium">Secilen islemler</p>
+                <p className="font-medium">Seçilen işlemler</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedChecklistItems.map((item) => (
                     <button
@@ -350,7 +350,7 @@ export function AddRepairPage() {
               </div>
             ) : null}
             <Textarea
-              placeholder="Hazir tiklerin disinda kalan ek is, ses, ariza veya musteri notunu yaz"
+              placeholder="Hazır tiklerin dışında kalan ek iş, ses, arıza veya müşteri notunu yaz"
               value={manualDescription}
               onChange={(event) => setManualDescription(event.target.value)}
             />
@@ -358,7 +358,7 @@ export function AddRepairPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Iscilik ucreti</Label>
+              <Label>İşçilik ücreti</Label>
               <Input
                 inputMode="numeric"
                 placeholder="0"
@@ -373,7 +373,7 @@ export function AddRepairPage() {
             </div>
 
             <div>
-              <Label>Yedek parca ucreti</Label>
+              <Label>Yedek parça ücreti</Label>
               <Input
                 inputMode="numeric"
                 placeholder="0"
@@ -393,7 +393,7 @@ export function AddRepairPage() {
               <Label>Kilometre</Label>
               <Input
                 inputMode="numeric"
-                placeholder="Ornek: 22000"
+                placeholder="Örnek: 22000"
                 value={draft.kilometer ?? ""}
                 onChange={(event) =>
                   setDraft((current) => ({
@@ -405,7 +405,7 @@ export function AddRepairPage() {
             </div>
 
             <div>
-              <Label>Odeme durumu</Label>
+                <Label>Ödeme durumu</Label>
               <select
                 className="min-h-12 w-full rounded-2xl border border-slate/10 bg-sand px-4 py-3 text-sm outline-none focus:border-amber"
                 value={draft.paymentStatus ?? ""}
@@ -417,19 +417,19 @@ export function AddRepairPage() {
                   }))
                 }
               >
-                <option value="">Secin</option>
-                <option value="paid">Odendi</option>
-                <option value="partial">Kismi</option>
-                <option value="unpaid">Odenmedi</option>
+                  <option value="">Seçin</option>
+                  <option value="paid">Ödendi</option>
+                  <option value="partial">Kısmi</option>
+                  <option value="unpaid">Ödenmedi</option>
               </select>
             </div>
 
             {draft.paymentStatus === "partial" ? (
               <div>
-                <Label>Alinan odeme</Label>
+                <Label>Alınan ödeme</Label>
                 <Input
                   inputMode="numeric"
-                  placeholder="Ornek: 500"
+                    placeholder="Örnek: 500"
                   value={draft.paidAmount ?? ""}
                   onChange={(event) =>
                     setDraft((current) => ({
@@ -445,7 +445,7 @@ export function AddRepairPage() {
           <div>
             <Label>Ek notlar</Label>
             <Textarea
-              placeholder="Musteriye bilgi, ileri tarih notu veya teslime dair detay"
+              placeholder="Müşteriye bilgi, ileri tarih notu veya teslime dair detay"
               value={draft.notes}
               onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
             />
@@ -467,7 +467,7 @@ export function AddRepairPage() {
             </Button>
             <Link to={`/motosiklet/${motorcycleId}`}>
               <Button className="w-full" type="button" variant="secondary">
-                Iptal ve geri don
+                İptal ve geri dön
               </Button>
             </Link>
           </div>

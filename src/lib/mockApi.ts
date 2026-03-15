@@ -572,11 +572,11 @@ export async function registerUser(input: {
   const username = clampText(input.username, 50).toLowerCase();
 
   if (!username) {
-    throw new Error("KullanÄ±cÄ± adÄ± zorunludur.");
+    throw new Error("Kullanıcı adı zorunludur.");
   }
 
   if (users.some((item) => item.username === username)) {
-    throw new Error("Bu kullanÄ±cÄ± adÄ± zaten kayÄ±tlÄ±.");
+    throw new Error("Bu kullanıcı adı zaten kayıtlı.");
   }
 
   const user: UserAccount = {
@@ -666,18 +666,18 @@ export async function changeCurrentUserPassword(input: {
   const activeUser = users.find((item) => item.id === activeUserId);
 
   if (!activeUser) {
-    throw new Error("Aktif kullanÄ±cÄ± bulunamadÄ±.");
+    throw new Error("Aktif kullanıcı bulunamadı.");
   }
 
   const currentPassword = clampText(input.currentPassword, 120);
   const nextPassword = clampText(input.nextPassword, 120);
 
   if (activeUser.password !== currentPassword) {
-    throw new Error("Mevcut ÅŸifre yanlÄ±ÅŸ.");
+    throw new Error("Mevcut şifre yanlış.");
   }
 
   if (nextPassword.length < 6) {
-    throw new Error("Yeni ÅŸifre en az 6 karakter olmalÄ±.");
+    throw new Error("Yeni şifre en az 6 karakter olmalı.");
   }
 
   const nextUsers = users.map((item) =>
@@ -705,7 +705,7 @@ export async function signInSystemAdmin(input: {
 }) {
   if (typeof window === "undefined") {
     await wait(140);
-    return { success: false, error: "YÃ¶netici giriÅŸi yalnÄ±zca tarayÄ±cÄ± Ã¼zerinden kullanÄ±labilir." };
+    return { success: false, error: "Yönetici girişi yalnızca tarayıcı üzerinden kullanılabilir." };
   }
 
   try {
@@ -949,7 +949,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
   const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
 
   if (!motorcycle) {
-    throw new Error("Bu motosiklet bulunamadÄ±.");
+    throw new Error("Bu motosiklet bulunamadı.");
   }
 
   const nextWorkOrder = sanitizeWorkOrder({
@@ -968,7 +968,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
   });
 
   if (!nextWorkOrder) {
-    throw new Error("Ä°ÅŸ durumu kaydÄ± oluÅŸturulamadÄ±.");
+    throw new Error("İş durumu kaydı oluşturulamadı.");
   }
 
   writeWorkOrders([nextWorkOrder, ...readWorkOrders()]);
@@ -1046,7 +1046,7 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
   const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
 
   if (!motorcycle) {
-    throw new Error("Bu motosiklet bulunamadÄ±.");
+    throw new Error("Bu motosiklet bulunamadı.");
   }
 
   const conflictingOrder = readWorkOrders().find(
@@ -1054,7 +1054,7 @@ export async function bindOfficialQrToMotorcycle(motorcycleId: string, qrValue: 
   );
 
   if (conflictingOrder) {
-    throw new Error("Bu resmi plaka QR'Ä± baÅŸka bir motosiklete baÄŸlÄ±.");
+    throw new Error("Bu resmi plaka QR'ı başka bir motosiklete bağlı.");
   }
 
   let targetOrder =
@@ -1252,7 +1252,7 @@ export async function addWorkOrderUpdate(input: {
   const workOrder = readWorkOrders().find((item) => item.id === input.workOrderId && item.userId === activeUserId);
 
   if (!workOrder) {
-    throw new Error("Ä°ÅŸ emri bulunamadÄ±.");
+    throw new Error("İş emri bulunamadı.");
   }
 
   const nextUpdate = sanitizeWorkOrderUpdate({
@@ -1674,7 +1674,7 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
             id: crypto.randomUUID(),
             amount: totalCost,
             paidAt: new Date().toISOString().slice(0, 10),
-            note: "Ä°ÅŸlem onayÄ±nda tam Ã¶deme alÄ±ndÄ±."
+            note: "İşlem onayında tam ödeme alındı."
           }
         ]
       : draft.paymentStatus === "partial" && safePaidAmount > 0
@@ -1683,7 +1683,7 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
               id: crypto.randomUUID(),
               amount: safePaidAmount,
               paidAt: new Date().toISOString().slice(0, 10),
-              note: "Ä°ÅŸlem onayÄ±nda kÄ±smi Ã¶deme alÄ±ndÄ±."
+              note: "İşlem onayında kısmi ödeme alındı."
             }
           ]
       : [];
@@ -1776,7 +1776,7 @@ export async function createMotorcycle(input: Omit<Motorcycle, "id" | "createdAt
   }
 
   if (motorcycles.some((item) => item.userId === activeUserId && canonicalPlate(item.licensePlate) === canonical)) {
-    throw new Error("Bu plaka zaten kayÄ±tlÄ±.");
+    throw new Error("Bu plaka zaten kayıtlı.");
   }
 
   const nextMotorcycle = sanitizeMotorcycle({
@@ -1793,7 +1793,7 @@ export async function createMotorcycle(input: Omit<Motorcycle, "id" | "createdAt
   });
 
   if (!nextMotorcycle) {
-    throw new Error("Motosiklet kaydÄ± oluÅŸturulamadÄ±.");
+    throw new Error("Motosiklet kaydı oluşturulamadı.");
   }
 
   writeMotorcycles([nextMotorcycle, ...motorcycles]);
