@@ -348,7 +348,7 @@ export function MotorcyclePage() {
             <SectionTitle
               eyebrow="Resmi plaka QR"
               title={trackingCard?.officialQrBound ? "Resmi QR eşleştirildi" : "Resmi QR henüz bağlı değil"}
-              description="Custom QR sistemi kaldırıldı. Bu kayda plaka üzerindeki resmi QR bağlanır."
+              description="Bu kayda plaka üzerindeki resmi QR bağlanır."
             />
             <div className="mt-5 rounded-3xl border border-dashed border-amber/40 bg-sand px-5 py-5">
               <p className="font-semibold text-ink">

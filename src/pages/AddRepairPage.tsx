@@ -197,7 +197,7 @@ export function AddRepairPage() {
           title={`${motorcycle.licensePlate} için yeni işlem`}
           titleClassName="text-white"
           eyebrowClassName="text-amber-200"
-          description="Ses kaydı ve AI analizi bu ekranda gizlendi. Burada usta gibi hızlı seç, ek notu yaz, tutarı gir ve kaydet."
+          description="Hazır işleri seç, ek notu yaz, tutarı gir ve kaydet."
         />
         <div className="mt-5 grid gap-3 lg:grid-cols-[auto_1fr]">
           <div className="rounded-2xl bg-white/10 px-4 py-4">
@@ -208,7 +208,7 @@ export function AddRepairPage() {
           <div className="rounded-2xl bg-white/10 px-4 py-4">
             <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Çalışma şekli</p>
             <p className="mt-2 text-sm leading-6 text-white/85">
-              Önce araç tipini seç. Sonra yapılan işleri tıkla. En alta sadece eksik kalan açıklamayı ve ücreti yaz.
+              Önce araç tipini seç. Sonra yapılan işleri işaretle. En altta gerekiyorsa kısa açıklamayı ve ücreti yaz.
             </p>
           </div>
         </div>
@@ -216,9 +216,9 @@ export function AddRepairPage() {
 
       <Panel>
         <SectionTitle
-          eyebrow="Hazır seçim"
-          title="Usta gibi hızlı işaretle"
-          description="Gereksiz genel seçenekler yok. Tıklananlar doğrudan işlem açıklamasına eklenir."
+          eyebrow="Hazır işlemler"
+          title="Usta gibi hızlı seçim yap"
+          description="Sık yapılan işleri tikle, kalan detayı nota ekle. Seçtiklerin doğrudan işlem açıklamasına eklenir."
         />
 
         <form className="mt-5 grid gap-5" onSubmit={handleSubmit}>

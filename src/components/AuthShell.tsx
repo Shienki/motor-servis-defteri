@@ -14,12 +14,12 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
           <p className="text-xs uppercase tracking-[0.3em] text-amber">Atölye odaklı dijital kayıt</p>
           <h1 className="mt-4 text-4xl font-semibold leading-tight">Plakadan kayda, kayıttan tahsilata.</h1>
           <p className="mt-4 max-w-md text-sm text-sand/85">
-            Ustanın iş akışını yavaşlatmadan plaka arama, servis geçmişi, sesli kayıt ve borç takibi için tasarlandı.
+            Ustanın iş akışını yavaşlatmadan plaka arama, servis geçmişi, iş durumu ve tahsilat takibi için tasarlandı.
           </p>
           <div className="mt-8 grid gap-3 text-sm text-sand/90">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Plaka okut, kaydı anında aç.</div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Yapılan işi sesle kaydet, sonra onayla.</div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Ödenmeyenleri tek ekranda gör.</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Plakayı yaz ya da resmi QR'ı okut, kaydı anında aç.</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Hazır işlemi seç, ücreti gir, kaydı hızlıca oluştur.</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Borçları, tahsilatları ve teslim durumunu tek ekranda gör.</div>
           </div>
         </section>
 

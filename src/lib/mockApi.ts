@@ -956,7 +956,7 @@ export async function createTrackingWorkOrder(motorcycleId: string) {
     id: crypto.randomUUID(),
     motorcycleId,
     userId: activeUserId,
-    complaint: "Servis takip sÃ¼reci",
+    complaint: "Servis takip süreci",
       status: "received",
     estimatedDeliveryDate: null,
     publicTrackingToken: crypto.randomUUID(),
@@ -1265,7 +1265,7 @@ export async function addWorkOrderUpdate(input: {
   });
 
   if (!nextUpdate) {
-    throw new Error("GÃ¼ncelleme kaydedilemedi.");
+    throw new Error("Güncelleme kaydedilemedi.");
   }
 
   writeWorkOrderUpdates([nextUpdate, ...readWorkOrderUpdates()]);
@@ -1294,13 +1294,13 @@ export async function simulatePlateScan() {
 export async function simulateVoiceExtraction(): Promise<AiRepairDraft> {
   await wait(900);
   return {
-    description: "Ã–n takÄ±mdan ses geliyor diye geldi. FurÃ§ takÄ±mÄ± kontrol edildi, saÄŸ keÃ§e deÄŸiÅŸti, yaÄŸ tamamlama yapÄ±ldÄ±.",
+    description: "Ön takımdan ses geliyor diye geldi. Furç takımı kontrol edildi, sağ keçe değişti, yağ tamamlama yapıldı.",
     laborCost: 950,
     partsCost: 700,
     kilometer: 18720,
     paymentStatus: "partial",
     paidAmount: 500,
-    notes: "500 TL peÅŸin alÄ±ndÄ±, kalan haftaya Ã¶denecek."
+    notes: "500 TL peşin alındı, kalan haftaya ödenecek."
   };
 }
 
@@ -1658,7 +1658,7 @@ export async function createRepairDraft(motorcycleId: string, draft: AiRepairDra
   const motorcycle = readMotorcycles().find((item) => item.id === motorcycleId && item.userId === activeUserId);
 
   if (!motorcycle) {
-    throw new Error("Bu motosiklete iÅŸlem ekleme yetkin yok.");
+    throw new Error("Bu motosiklete işlem ekleme yetkin yok.");
   }
 
   const safeLabor = clampNumber(draft.laborCost, 0, 999999);
@@ -1772,7 +1772,7 @@ export async function createMotorcycle(input: Omit<Motorcycle, "id" | "createdAt
   const canonical = canonicalPlate(formattedPlate);
 
   if (!canonical) {
-    throw new Error("GeÃ§ersiz plaka.");
+    throw new Error("Geçersiz plaka.");
   }
 
   if (motorcycles.some((item) => item.userId === activeUserId && canonicalPlate(item.licensePlate) === canonical)) {
